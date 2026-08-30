@@ -3,6 +3,7 @@ FastAPI entry point (phases 4-5). Run with:
     uvicorn backend.main:app --reload
 """
 import asyncio
+import sys
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket
@@ -12,7 +13,16 @@ from backend.api.routes import router as api_router
 from backend.api.websocket import broadcast_loop, traffic_live_endpoint
 from backend.db.database import init_db
 
-FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+# When frozen into a single executable (PyInstaller — see app.py and the
+# README's "single-file download" section), bundled data files
+# (frontend/) are extracted to sys._MEIPASS at runtime, not next to this
+# source file.
+if getattr(sys, "frozen", False):
+    _BASE_DIR = Path(sys._MEIPASS)  # type: ignore[attr-defined]
+else:
+    _BASE_DIR = Path(__file__).resolve().parent.parent
+
+FRONTEND_DIR = _BASE_DIR / "frontend"
 
 app = FastAPI(title="netTAPESH", description="Local traffic + connectivity monitoring")
 

@@ -13,6 +13,11 @@ data/
 # env / secrets
 .env
 
+# PyInstaller build output (see README "Single-file download")
+build/
+dist/
+*.spec
+
 # OS
 .DS_Store
 
