@@ -11,6 +11,27 @@
   const connectivityStatusEl = document.getElementById("connectivityStatus");
   const alertsListEl = document.getElementById("alertsList");
 
+  // "مجموع امروز" per process — refreshed periodically from
+  // /api/traffic/history (the persisted, cumulative-since-midnight
+  // total the standalone traffic_collector writes), keyed by process
+  // name since PIDs restart across app relaunches.
+  const TODAY_TOTAL_POLL_MS = 15000;
+  let todayTotalsByName = {};
+
+  async function refreshTodayTotals() {
+    try {
+      const res = await fetch("/api/traffic/history?range=day");
+      const data = await res.json();
+      const next = {};
+      data.processes.forEach((p) => {
+        next[p.process_name] = (p.total_mb_sent || 0) + (p.total_mb_recv || 0);
+      });
+      todayTotalsByName = next;
+    } catch (e) {
+      // best-effort — the live table just keeps showing the last known totals
+    }
+  }
+
   // ---- Live traffic chart (rolling window of total active connections) ----
   const liveChartCtx = document.getElementById("liveChart").getContext("2d");
   const liveChart = new Chart(liveChartCtx, {
@@ -56,11 +77,13 @@
     msg.processes.forEach((p) => {
       const row = document.createElement("tr");
       const mbText = bytesToMbText(p.bytes_sent, p.bytes_recv);
-      row.innerHTML = `<td>${escapeHtml(p.name)}</td><td>${p.pid}</td><td>${p.connection_count}</td><td>${mbText}</td>`;
+      const todayMb = todayTotalsByName[p.name];
+      const todayText = todayMb != null ? `${todayMb.toFixed(2)} MB` : "—";
+      row.innerHTML = `<td>${escapeHtml(p.name)}</td><td>${p.pid}</td><td>${p.connection_count}</td><td>${mbText}</td><td>${todayText}</td>`;
       liveTableBody.appendChild(row);
     });
     if (msg.processes.length === 0) {
-      liveTableBody.innerHTML = `<tr><td colspan="4" style="color:#8b93a8">هیچ کانکشن فعالی نیست</td></tr>`;
+      liveTableBody.innerHTML = `<tr><td colspan="5" style="color:#8b93a8">هیچ کانکشن فعالی نیست</td></tr>`;
     }
 
     // rolling chart
@@ -220,6 +243,8 @@
   loadConnectivityHistory("day");
   loadConnectivityStatus();
   loadAlerts();
+  refreshTodayTotals();
   setInterval(loadConnectivityStatus, CONNECTIVITY_POLL_MS);
   setInterval(loadAlerts, ALERTS_POLL_MS);
+  setInterval(refreshTodayTotals, TODAY_TOTAL_POLL_MS);
 })();
