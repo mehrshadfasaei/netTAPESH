@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NetPulse</title>
   <link rel="stylesheet" href="/css/style.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <!-- Vendored locally (not loaded from a CDN) so the dashboard works
+       fully offline / behind restrictive firewalls, with no external
+       dependency at runtime. -->
+  <script src="/js/vendor/chart.umd.js"></script>
+  <script src="/js/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
 </head>
 <body>
   <header class="topbar">
