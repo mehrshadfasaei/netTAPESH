@@ -1,0 +1,29 @@
+# Runs with zero configuration (all thresholds have sane defaults in
+# backend/config.py). To override anything (poll intervals, alert
+# thresholds, connectivity targets), copy .env.example to .env and
+# uncomment an `env_file: [.env]` line under each service below.
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - netpulse-data:/app/data
+    restart: unless-stopped
+
+  traffic-collector:
+    build: .
+    command: ["python", "-m", "backend.collectors.traffic_collector"]
+    volumes:
+      - netpulse-data:/app/data
+    restart: unless-stopped
+
+  connectivity-collector:
+    build: .
+    command: ["python", "-m", "backend.collectors.connectivity_collector"]
+    volumes:
+      - netpulse-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  netpulse-data:

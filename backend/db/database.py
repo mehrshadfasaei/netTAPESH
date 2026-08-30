@@ -5,7 +5,7 @@ single device).
 """
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.config import settings
@@ -21,6 +21,17 @@ engine = create_engine(
     settings.database_url,
     connect_args={"check_same_thread": False} if settings.database_url.startswith("sqlite") else {},
 )
+
+if settings.database_url.startswith("sqlite"):
+    # WAL mode lets the API and the two collector processes (separate
+    # containers in docker-compose, all pointed at the same file via a
+    # shared volume) read/write concurrently without "database is locked".
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragma(dbapi_connection, _):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.close()
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
