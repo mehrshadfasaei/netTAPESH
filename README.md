@@ -1,4 +1,4 @@
-# NetPulse
+# netTAPESH (NetPulse)
 
 A local network traffic and connection-quality monitoring tool.
 

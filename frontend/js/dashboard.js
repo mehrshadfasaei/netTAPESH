@@ -19,7 +19,7 @@
       labels: [],
       datasets: [
         {
-          label: "Total active connections",
+          label: "مجموع کانکشن‌های فعال",
           data: [],
           borderColor: "#4f8cff",
           backgroundColor: "rgba(79, 140, 255, 0.15)",
@@ -59,12 +59,12 @@
       liveTableBody.appendChild(row);
     });
     if (msg.processes.length === 0) {
-      liveTableBody.innerHTML = `<tr><td colspan="3" style="color:#8b93a8">No active connections</td></tr>`;
+      liveTableBody.innerHTML = `<tr><td colspan="3" style="color:#8b93a8">هیچ کانکشن فعالی نیست</td></tr>`;
     }
 
     // rolling chart
     const total = msg.processes.reduce((sum, p) => sum + p.connection_count, 0);
-    const label = new Date().toLocaleTimeString();
+    const label = new Date().toLocaleTimeString("fa-IR");
     liveChart.data.labels.push(label);
     liveChart.data.datasets[0].data.push(total);
     if (liveChart.data.labels.length > LIVE_WINDOW) {
@@ -77,7 +77,7 @@
   const socket = new NetPulseSocket("/api/traffic/live", {
     onMessage: handleLiveMessage,
     onStatusChange: (status) => {
-      connIndicator.textContent = status === "connected" ? "live" : "reconnecting…";
+      connIndicator.textContent = status === "connected" ? "زنده" : "در حال اتصال مجدد…";
       connIndicator.className = "badge " + (status === "connected" ? "badge-up" : "badge-unknown");
     },
   });
@@ -87,7 +87,7 @@
   const trafficHistoryCtx = document.getElementById("trafficHistoryChart").getContext("2d");
   const trafficHistoryChart = new Chart(trafficHistoryCtx, {
     type: "bar",
-    data: { labels: [], datasets: [{ label: "Total connections observed", data: [], backgroundColor: "#4f8cff" }] },
+    data: { labels: [], datasets: [{ label: "مجموع کانکشن‌های ثبت‌شده", data: [], backgroundColor: "#4f8cff" }] },
     options: chartOptions(),
   });
 
@@ -109,7 +109,7 @@
       parsing: false,
       scales: {
         x: { type: "time", ticks: { color: "#8b93a8" }, grid: { color: "#262f45" } },
-        y: { ticks: { color: "#8b93a8" }, grid: { color: "#262f45" }, title: { display: true, text: "ms", color: "#8b93a8" } },
+        y: { ticks: { color: "#8b93a8" }, grid: { color: "#262f45" }, title: { display: true, text: "میلی‌ثانیه", color: "#8b93a8" } },
       },
     }),
   });
@@ -154,15 +154,16 @@
     data.targets.forEach((t) => {
       const row = document.createElement("div");
       row.className = "status-row";
-      const latencyText = t.latency_ms != null ? `${t.latency_ms.toFixed(0)} ms` : "—";
+      const latencyText = t.latency_ms != null ? `${t.latency_ms.toFixed(0)} میلی‌ثانیه` : "—";
+      const statusLabel = { up: "متصل", down: "قطع", unknown: "نامشخص" }[t.status] || t.status;
       row.innerHTML = `
-        <span><span class="status-dot ${t.status}"></span>${escapeHtml(t.target_host)}</span>
+        <span><span class="status-dot ${t.status}"></span>${escapeHtml(t.target_host)} — ${statusLabel}</span>
         <span class="status-latency">${latencyText}</span>
       `;
       connectivityStatusEl.appendChild(row);
     });
     if (data.targets.length === 0) {
-      connectivityStatusEl.innerHTML = `<div class="status-row">No targets configured</div>`;
+      connectivityStatusEl.innerHTML = `<div class="status-row">هیچ سرور مرجعی تنظیم نشده</div>`;
     }
   }
 
@@ -171,14 +172,19 @@
     const res = await fetch("/api/alerts?limit=20");
     const data = await res.json();
     if (data.alerts.length === 0) {
-      alertsListEl.innerHTML = `<li class="empty">No alerts yet.</li>`;
+      alertsListEl.innerHTML = `<li class="empty">هنوز هشداری ثبت نشده.</li>`;
       return;
     }
+    const ALERT_TYPE_LABELS = {
+      high_usage: "مصرف زیاد",
+      connection_down: "قطعی اتصال",
+      high_latency: "تأخیر بالا",
+    };
     alertsListEl.innerHTML = data.alerts
       .map(
         (a) => `<li>
-          <span>[${escapeHtml(a.type)}] ${escapeHtml(a.message)}</span>
-          <span class="alert-time">${new Date(a.timestamp).toLocaleString()}</span>
+          <span>[${escapeHtml(ALERT_TYPE_LABELS[a.type] || a.type)}] ${escapeHtml(a.message)}</span>
+          <span class="alert-time">${new Date(a.timestamp).toLocaleString("fa-IR")}</span>
         </li>`
       )
       .join("");
