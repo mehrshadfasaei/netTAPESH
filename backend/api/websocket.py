@@ -74,13 +74,26 @@ async def broadcast_loop() -> None:
     connected. Draining the byte sampler every tick (not just when
     someone's connected) keeps each window's bytes meaningful instead of
     dumping an hour of backlog on the first client that connects."""
+    tick = 0
     while True:
+        tick += 1
         byte_deltas = _byte_sampler.snapshot_and_reset() if _byte_sampler else None
         if manager.has_clients:
-            # sample_processes() walks every running process synchronously;
-            # off the event loop so a slow psutil scan doesn't stall other
-            # connections.
-            samples = await asyncio.to_thread(sample_processes, byte_deltas)
+            # Deliberately NOT offloaded to a worker thread (no
+            # asyncio.to_thread) — on Windows, psutil calls made from a
+            # thread pool thread that never ran CoInitialize can behave
+            # differently (silently return less than a call from the
+            # collector's own dedicated thread does). A local walk of
+            # ~50 processes takes single-digit milliseconds, so blocking
+            # the loop briefly every poll interval is a non-issue for a
+            # single-user local dashboard.
+            try:
+                samples = sample_processes(byte_deltas)
+            except Exception as exc:
+                print(f"[websocket] sample_processes() failed: {exc!r}")
+                samples = []
+            if tick <= 3:
+                print(f"[websocket] tick {tick}: {len(samples)} process samples for the live view")
             sort_key = (
                 (lambda s: (s.bytes_sent or 0) + (s.bytes_recv or 0))
                 if byte_deltas
