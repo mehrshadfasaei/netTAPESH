@@ -3,6 +3,7 @@ Database engine/session setup. SQLite for now (per spec: simple to start,
 clear upgrade path to TimescaleDB later if NetPulse ever grows beyond a
 single device).
 """
+import threading
 from pathlib import Path
 
 from sqlalchemy import create_engine, event
@@ -36,8 +37,20 @@ if settings.database_url.startswith("sqlite"):
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
+_init_db_lock = threading.Lock()
+
+
 def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
+    """
+    create_all() is normally safe to call repeatedly (it checks for each
+    table's existence first) — but that check-then-create isn't atomic,
+    so calling it from multiple threads at once (e.g. app.py's
+    single-process launcher starts the API and both collectors as
+    threads that each call this on startup) can race into a genuine
+    'table already exists' OperationalError. A lock serializes it.
+    """
+    with _init_db_lock:
+        Base.metadata.create_all(bind=engine)
 
 
 def get_session() -> Session:

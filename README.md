@@ -126,6 +126,29 @@ Open `http://localhost:8000`. API docs (Swagger UI): `http://localhost:8000/docs
 4. The dashboard's "مصرف (MB)" column and the traffic-history chart
    switch to real megabytes automatically once bytes start coming in.
 
+## Single-file download (Windows) — no terminal, no Administrator
+
+For a true download-and-double-click experience (no venv, no terminals,
+no admin prompt), `app.py` runs the API and both collectors in one
+process and opens the dashboard in your browser automatically. Trade-off:
+without Administrator, ETW can't start, so this mode always uses the
+connection-count proxy rather than real MB numbers (see "Known
+limitations" — chosen deliberately over requiring UAC just to launch).
+
+**Build it once** (on a Windows machine, inside the activated venv):
+```cmd
+pip install pyinstaller
+pyinstaller --onefile --name netTAPESH --add-data "frontend;frontend" app.py
+```
+This produces `dist\netTAPESH.exe` — a single file with everything
+bundled in. Verified end-to-end on Linux while building this (API +
+both collectors running as threads in one process, dashboard served,
+both DB tables getting written) but **the actual Windows `.exe` itself
+hasn't been produced or run** — PyInstaller doesn't cross-compile, a
+Windows build has to happen on Windows. Run the command above once,
+then just double-click `netTAPESH.exe` from then on; share that one
+file with anyone who wants to run it the same way.
+
 ## Running with Docker
 
 ```bash
