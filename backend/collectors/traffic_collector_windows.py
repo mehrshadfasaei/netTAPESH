@@ -15,17 +15,26 @@ Requirements:
   - `pip install pywintrace` (imports as `etw`).
   - Must run as Administrator — starting a real-time ETW trace session
     requires elevated privileges. Without it, ETW.start() raises a
-    WindowsError/PermissionError; traffic_collector.py should catch that
-    and fall back rather than crash.
+    WindowsError/PermissionError; traffic_collector.py catches that and
+    falls back rather than crash.
 
-NOT independently verified end-to-end on a real Windows machine as part
-of building this — the ETW plumbing (provider GUID, task-name/field
-names below) follows the documented Microsoft-Windows-Kernel-Network
-manifest and the pywintrace API, but this needs a real run to confirm
-the exact field names pywintrace surfaces for this provider's events. If
-`_on_event` never accumulates anything, log what keys ARE present in a
-sample event (see the commented debug line) and adjust the field names
-below to match.
+The provider's manifest (confirmed against the published
+Microsoft-Windows-Kernel-Network.xml — provider GUID
+{7DD42A49-5329-4832-8DFD-43D979153A88}) defines send/receive as
+separate numeric event IDs under one shared task name
+(KERNEL_NETWORK_TASK_TCPIP / _UDPIP), not as distinguishable task
+names — so send vs. receive is decided by event_id below, not by
+parsing "Task Name" text (an earlier version of this file did that and
+it silently matched nothing). The manifest also defines a `PID` field
+as part of each event's own payload — that's the process that actually
+owns the socket, and is what's read below; the generic ETW
+EventHeader.ProcessId is a different (often irrelevant, sometimes
+System/0) value for kernel-mode network events and is not used.
+
+Two keywords gate whether the provider emits IPv4/IPv6 traffic events
+at all (KERNEL_NETWORK_KEYWORD_IPV4 = 0x10, _IPV6 = 0x20) — passing no
+keywords (bitmask 0) was tried first and produced zero events on a
+real run, so both are requested explicitly below.
 """
 from __future__ import annotations
 
@@ -44,31 +53,20 @@ except ImportError:  # pywintrace not installed, or not on Windows at all
     ProviderInfo = None
 
 # Microsoft-Windows-Kernel-Network provider GUID — the provider Resource
-# Monitor's Network tab reads from. Documented/stable GUID, not something
-# that varies by Windows version.
+# Monitor's Network tab reads from. Documented/stable GUID.
 _KERNEL_NETWORK_GUID = "{7DD42A49-5329-4832-8DFD-43D979153A88}"
 
-# Task names for the events we care about. TCP and UDP sends/receives both
-# surface under these two task names in this provider.
-_SEND_TASKS = {"KERNEL_NETWORK_TASK_TCPIP", "KERNEL_NETWORK_TASK_UDPIP"}
+# Must be requested explicitly (see module docstring) — these are the
+# provider's own keyword names, resolved to bitmask values by pywintrace's
+# get_keywords_bitmask() via TdhEnumerateProviderFieldInformation.
+_REQUIRED_KEYWORDS = ["KERNEL_NETWORK_KEYWORD_IPV4", "KERNEL_NETWORK_KEYWORD_IPV6"]
 
-
-def _is_send_event(task_name: str, event_id: int) -> Optional[bool]:
-    """
-    Returns True for a send event, False for a receive event, None if this
-    event isn't one we care about. Determined by opcode-derived event id
-    within the Kernel-Network manifest: send=10 (TCP)/42 (UDP-ish) in some
-    Windows versions, but the more version-stable approach is the parsed
-    'Task Name' + 'Description'/'Opcode' fields pywintrace surfaces — kept
-    here as a single choke point so it's the only place to adjust if the
-    field names turn out to differ on a real run.
-    """
-    upper = task_name.upper()
-    if "DATASENT" in upper or upper.endswith("SEND"):
-        return True
-    if "DATARECEIVED" in upper or upper.endswith("RECV") or upper.endswith("RECEIVE"):
-        return False
-    return None
+# Numeric event IDs from the manifest (KERNEL_NETWORK_TASK_TCPIP /
+# _UDPIP events). IPv6 UDP event IDs weren't confirmed against the
+# manifest while building this — if UDP traffic over IPv6 turns out to
+# be missed, that's the place to add them.
+_SEND_EVENT_IDS = {10, 26, 42}  # TCP-IPv4 sent, TCP-IPv6 sent, UDP-IPv4 sent
+_RECV_EVENT_IDS = {11, 27, 43}  # TCP-IPv4 recv, TCP-IPv6 recv, UDP-IPv4 recv
 
 
 class WindowsByteSampler:
@@ -93,32 +91,32 @@ class WindowsByteSampler:
 
     def _on_event(self, event_tuple) -> None:
         event_id, event = event_tuple
-        task_name = event.get("Task Name", "") or ""
-
-        if task_name.upper().replace("-", "").replace("_", "") == "" :
-            return
 
         # Debug aid, on by default for the first few events: prints exactly
         # what pywintrace parsed so field-name mismatches are visible
         # immediately instead of showing up only as "MB stays at —". Safe
         # to leave on — capped at 3 prints total, then silent.
         if self._logged_events < 3:
-            print(f"[traffic_collector_windows] sample event #{self._logged_events + 1}: {event}")
+            print(f"[traffic_collector_windows] sample event #{self._logged_events + 1} (id={event_id}): {event}")
             self._logged_events += 1
 
-        header = event.get("EventHeader", {}) or {}
-        pid = header.get("ProcessId")
-        size = event.get("size", event.get("Size"))
+        if event_id in _SEND_EVENT_IDS:
+            is_send = True
+        elif event_id in _RECV_EVENT_IDS:
+            is_send = False
+        else:
+            return
 
+        # The event's own PID field (who owns the socket) — not
+        # EventHeader.ProcessId, see module docstring.
+        pid = event.get("PID")
+        size = event.get("size")
         if pid is None or size is None:
             return
         try:
+            pid = int(pid)
             size = int(size)
         except (TypeError, ValueError):
-            return
-
-        is_send = _is_send_event(task_name, event_id)
-        if is_send is None:
             return
 
         with self._lock:
@@ -128,7 +126,11 @@ class WindowsByteSampler:
                 self._bytes_recv[pid] += size
 
     def start(self) -> None:
-        provider = ProviderInfo("Microsoft-Windows-Kernel-Network", GUID(_KERNEL_NETWORK_GUID))
+        provider = ProviderInfo(
+            "Microsoft-Windows-Kernel-Network",
+            GUID(_KERNEL_NETWORK_GUID),
+            any_keywords=_REQUIRED_KEYWORDS,
+        )
         self._etw = ETW(providers=[provider], event_callback=self._on_event)
         self._etw.start()
         logger.info("[traffic_collector_windows] ETW capture started (Microsoft-Windows-Kernel-Network)")
