@@ -89,6 +89,39 @@ not just `localhost`. Put it behind a reverse proxy (nginx, Caddy) with
 TLS if you want `https://`; nothing in the app assumes a particular
 domain or port.
 
+### Render.com (free tier)
+
+`render.yaml` in this repo is a Blueprint — Render reads it and
+configures the service automatically instead of you clicking through
+every setting by hand:
+
+1. Push this repo to GitHub (already done if you're reading this from
+   the repo).
+2. On [render.com](https://render.com), **New +** → **Blueprint** →
+   connect this GitHub repo → Render detects `render.yaml` and shows
+   the `nettapesh` service it's about to create → **Apply**.
+3. Wait for the first build (a few minutes) — Render gives you a URL
+   like `https://nettapesh-xxxx.onrender.com`.
+
+**Two free-tier trade-offs worth knowing, not bugs:**
+- The free plan has **no persistent disk**, so the SQLite history file
+  resets on every redeploy/restart — the live ping/download/upload test
+  itself is unaffected, only the history chart loses old data. A paid
+  plan with a persistent disk (or switching to a hosted Postgres) fixes
+  this if history matters to you.
+- Free services **spin down after 15 minutes idle** and take ~30-60s to
+  wake back up on the next request — the first test after a quiet
+  period will look artificially slow/high-ping because it's waiting for
+  the container to boot, not measuring your connection. Nothing to fix,
+  just don't judge the first run after a gap.
+
+### Railway / Fly.io
+
+Both also build directly from this repo's `Dockerfile` — point either
+platform's "deploy from GitHub repo" flow at this repo; no extra config
+needed beyond what's already in the `Dockerfile`. Same persistent-disk
+caveat as Render applies unless you attach a volume.
+
 ## API
 
 | Method | Path | Description |
