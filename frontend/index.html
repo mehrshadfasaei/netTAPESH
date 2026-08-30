@@ -23,6 +23,11 @@
       </button>
       <div id="testPhase" class="test-phase"></div>
 
+      <div class="unit-toggle" id="unitToggle">
+        <button data-unit="mbps" class="active">Mbps</button>
+        <button data-unit="MBps">MB/s</button>
+      </div>
+
       <div class="result-grid">
         <div class="result-tile">
           <span class="result-label">پینگ</span>
@@ -32,12 +37,12 @@
         <div class="result-tile">
           <span class="result-label">دانلود</span>
           <span id="rDown" class="result-value">—</span>
-          <span class="result-unit">Mbps</span>
+          <span id="rDownUnit" class="result-unit">Mbps</span>
         </div>
         <div class="result-tile">
           <span class="result-label">آپلود</span>
           <span id="rUp" class="result-value">—</span>
-          <span class="result-unit">Mbps</span>
+          <span id="rUpUnit" class="result-unit">Mbps</span>
         </div>
       </div>
       <div id="resultMeta" class="hint"></div>

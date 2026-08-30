@@ -31,12 +31,47 @@
   const rPing = document.getElementById("rPing");
   const rDown = document.getElementById("rDown");
   const rUp = document.getElementById("rUp");
+  const rDownUnit = document.getElementById("rDownUnit");
+  const rUpUnit = document.getElementById("rUpUnit");
+  const unitToggle = document.getElementById("unitToggle");
   const resultMetaEl = document.getElementById("resultMeta");
 
   function mbps(bytes, seconds) {
     if (seconds <= 0) return 0;
     return (bytes * 8) / (seconds * 1_000_000);
   }
+
+  // ---- Display unit (Mbps vs MB/s) — a pure display toggle, all
+  // internal math and history/API values stay in Mbps regardless ----
+  let currentUnit = "mbps"; // "mbps" | "MBps"
+  let lastDownloadMbps = null;
+  let lastUploadMbps = null;
+
+  function formatSpeed(mbpsValue) {
+    if (mbpsValue == null) return "—";
+    return currentUnit === "MBps" ? (mbpsValue / 8).toFixed(2) : mbpsValue.toFixed(1);
+  }
+
+  function setDownloadDisplay(mbpsValue) {
+    lastDownloadMbps = mbpsValue;
+    rDown.textContent = formatSpeed(mbpsValue);
+  }
+
+  function setUploadDisplay(mbpsValue) {
+    lastUploadMbps = mbpsValue;
+    rUp.textContent = formatSpeed(mbpsValue);
+  }
+
+  unitToggle.addEventListener("click", (e) => {
+    if (e.target.tagName !== "BUTTON") return;
+    currentUnit = e.target.dataset.unit;
+    unitToggle.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === e.target));
+    const unitLabel = currentUnit === "MBps" ? "MB/s" : "Mbps";
+    rDownUnit.textContent = unitLabel;
+    rUpUnit.textContent = unitLabel;
+    rDown.textContent = formatSpeed(lastDownloadMbps);
+    rUp.textContent = formatSpeed(lastUploadMbps);
+  });
 
   // ---- Ping (sequential, before any load on the link) ----
   async function measurePing() {
@@ -116,9 +151,7 @@
   }
 
   function measureDownload() {
-    return runParallelTest(downloadLane, (liveMbps) => {
-      rDown.textContent = liveMbps.toFixed(1);
-    });
+    return runParallelTest(downloadLane, setDownloadDisplay);
   }
 
   // ---- Upload: N parallel lanes, each looping fixed-size chunk POSTs
@@ -143,9 +176,7 @@
   }
 
   function measureUpload() {
-    return runParallelTest(uploadLane, (liveMbps) => {
-      rUp.textContent = liveMbps.toFixed(1);
-    });
+    return runParallelTest(uploadLane, setUploadDisplay);
   }
 
   async function saveResult(result) {
@@ -163,8 +194,8 @@
   async function runTest() {
     runBtn.disabled = true;
     rPing.textContent = "—";
-    rDown.textContent = "—";
-    rUp.textContent = "—";
+    setDownloadDisplay(null);
+    setUploadDisplay(null);
     resultMetaEl.textContent = "";
 
     try {
@@ -174,11 +205,11 @@
 
       testPhaseEl.textContent = "در حال تست دانلود…";
       const download_mbps = await measureDownload();
-      rDown.textContent = download_mbps.toFixed(1);
+      setDownloadDisplay(download_mbps);
 
       testPhaseEl.textContent = "در حال تست آپلود…";
       const upload_mbps = await measureUpload();
-      rUp.textContent = upload_mbps.toFixed(1);
+      setUploadDisplay(upload_mbps);
 
       testPhaseEl.textContent = "";
       resultMetaEl.textContent = `تست در ${new Date().toLocaleString("fa-IR")} انجام شد`;
@@ -247,8 +278,8 @@
     if (!data.result) return;
     const r = data.result;
     if (r.ping_ms != null) rPing.textContent = r.ping_ms.toFixed(0);
-    if (r.download_mbps != null) rDown.textContent = r.download_mbps.toFixed(1);
-    if (r.upload_mbps != null) rUp.textContent = r.upload_mbps.toFixed(1);
+    if (r.download_mbps != null) setDownloadDisplay(r.download_mbps);
+    if (r.upload_mbps != null) setUploadDisplay(r.upload_mbps);
     resultMetaEl.textContent = `آخرین تست: ${new Date(r.timestamp).toLocaleString("fa-IR")}`;
   }
 

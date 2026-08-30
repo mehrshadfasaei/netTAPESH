@@ -130,6 +130,18 @@ body {
 .range-toggle button:last-child { border-start-end-radius: 6px; border-end-end-radius: 6px; border-inline-start: none; }
 .range-toggle button.active { background: var(--accent); color: white; border-color: var(--accent); }
 
+.unit-toggle button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 0.2rem 0.55rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.unit-toggle button:first-child { border-start-start-radius: 6px; border-end-start-radius: 6px; }
+.unit-toggle button:last-child { border-start-end-radius: 6px; border-end-end-radius: 6px; border-inline-start: none; }
+.unit-toggle button.active { background: var(--accent); color: white; border-color: var(--accent); }
+
 @media (max-width: 500px) {
   .result-grid { grid-template-columns: 1fr; }
 }
