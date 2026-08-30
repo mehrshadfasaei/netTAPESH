@@ -27,6 +27,15 @@ class Settings(BaseSettings):
     connectivity_poll_interval_sec: float = 10.0
     ping_timeout_sec: float = 1.5
 
+    # --- Speed test collector -----------------------------------------
+    # Full ping+download+upload test against public Speedtest.net-network
+    # servers (via speedtest-cli). Deliberately a much longer interval
+    # than the plain ping above — this moves real data (tens of MB) and
+    # running it every 10s would itself be a meaningful chunk of most
+    # people's bandwidth/data cap.
+    speedtest_interval_sec: float = 900.0  # 15 minutes
+    speedtest_enabled: bool = True
+
     # --- Alert rules ------------------------------------------------------
     # 1) high_usage: a single process crossing this many MB within the
     #    time window below triggers an alert.

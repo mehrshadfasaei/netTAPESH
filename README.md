@@ -7,20 +7,23 @@ Two things, on one machine:
 1. **Per-application traffic monitoring** — which processes are actively
    using the network, similar in spirit to a lightweight GlassWire.
 2. **Connection quality/stability monitoring** — periodic latency /
-   packet-loss / outage checks against a few reference hosts, logged over
-   time. This is the part most similar tools skip: it's built for
-   environments with frequent, unpredictable internet instability, where
-   knowing *when* and *how often* your connection degraded matters as
-   much as knowing your bandwidth usage.
+   packet-loss / outage checks against a few reference hosts (fast, every
+   ~10s), *plus* real ping+download+upload speed tests on a longer
+   interval (~15 min, or on demand from the dashboard). This is the part
+   most similar tools skip: it's built for environments with frequent,
+   unpredictable internet instability, where knowing *when* and *how
+   often* your connection degraded — and what your actual throughput was
+   at the time — matters as much as knowing your bandwidth usage.
 
 ## Status
 
-Traffic + connectivity collectors, SQLite storage, the REST API,
-WebSocket live streaming, and the frontend dashboard are implemented and
-working end to end. Automated alerting (rule engine + Telegram
-notifications) is intentionally out of scope for this version — the
-`/api/alerts` endpoint and `alerts` table exist and are ready for it, but
-nothing writes to them yet. Docker packaging is in progress.
+Traffic + connectivity collectors, the speed test collector, SQLite
+storage, the REST API, WebSocket live streaming, and the frontend
+dashboard are implemented and working end to end. Automated alerting
+(rule engine + Telegram notifications) is intentionally out of scope for
+this version — the `/api/alerts` endpoint and `alerts` table exist and
+are ready for it, but nothing writes to them yet. Docker packaging is in
+progress.
 
 - [x] Phase 1 — standalone traffic collector
 - [x] Phase 2 — SQLite storage
@@ -80,6 +83,16 @@ nothing writes to them yet. Docker packaging is in progress.
   traffic. See "Running natively" below.
 - **No authentication.** This is a personal/portfolio tool for local use,
   not meant to be exposed to the internet.
+- **Speed test (ping+download+upload) not run end-to-end while building
+  it.** `speedtest_collector.py` uses `speedtest-cli` against the public
+  Speedtest.net server network — this environment's outbound network
+  access is restricted to a small allowlist, so a real test couldn't be
+  exercised here (it fails gracefully with a captured `error` field,
+  confirmed working, but the *successful* path — real ping/download/
+  upload numbers coming back — needs confirming on your machine). Same
+  caveat as the earlier ETW work: the API usage follows the library's
+  documented pattern, but "confirmed in code" isn't "confirmed on a real
+  network."
 
 ## Tech stack
 
@@ -105,6 +118,7 @@ uvicorn backend.main:app --reload
 # Run the collectors (separate terminals)
 python -m backend.collectors.traffic_collector
 python -m backend.collectors.connectivity_collector
+python -m backend.collectors.speedtest_collector
 ```
 
 Open `http://localhost:8000`. API docs (Swagger UI): `http://localhost:8000/docs`
@@ -170,9 +184,9 @@ docker compose up --build
 ```
 
 No `sudo`, no manual dependency install. This starts the API/dashboard
-(port `8000`) and the connectivity collector, sharing one SQLite file at
-`./data/netpulse.db` via a bind mount (not a named volume — that's
-deliberate, see next paragraph). **`traffic-collector` is intentionally
+(port `8000`), the connectivity collector, and the speed test collector,
+sharing one SQLite file at `./data/netpulse.db` via a bind mount (not a
+named volume — that's deliberate, see next paragraph). **`traffic-collector` is intentionally
 not a Docker service** — see "Known limitations" above. To also see
 per-app traffic while the rest runs in Docker, run just the traffic
 collector natively alongside it (same venv steps above, just the one
@@ -193,6 +207,9 @@ zero-config).
 | GET | `/api/traffic/history?range=day\|week` | Historical traffic data |
 | GET | `/api/connectivity/status` | Current connection status per target host |
 | GET | `/api/connectivity/history?range=day\|week` | Historical latency/outage data |
+| GET | `/api/speedtest/latest` | Most recent ping+download+upload result |
+| GET | `/api/speedtest/history?range=day\|week` | Historical speed test results |
+| POST | `/api/speedtest/run` | Runs a full speed test now (blocks ~10-30s, returns the result) |
 | GET | `/api/alerts` | Recent alerts (currently always empty — see limitations) |
 | POST | `/api/settings` | Accepts threshold overrides (not yet persisted at runtime) |
 

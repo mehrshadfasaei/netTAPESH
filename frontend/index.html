@@ -40,6 +40,31 @@
       <div id="connectivityStatus" class="status-list"></div>
     </section>
 
+    <section class="card">
+      <div class="card-header">
+        <h2>اسپیدتست</h2>
+        <button id="speedtestRunBtn" class="run-btn">تست کن الان</button>
+      </div>
+      <div id="speedtestResult" class="speedtest-stats">
+        <div class="stat-tile"><span class="stat-label">پینگ</span><span id="stPing" class="stat-value">—</span></div>
+        <div class="stat-tile"><span class="stat-label">دانلود</span><span id="stDown" class="stat-value">—</span></div>
+        <div class="stat-tile"><span class="stat-label">آپلود</span><span id="stUp" class="stat-value">—</span></div>
+      </div>
+      <div id="speedtestMeta" class="hint"></div>
+    </section>
+
+    <section class="card card-wide">
+      <div class="card-header">
+        <h2>تاریخچه‌ی اسپیدتست</h2>
+        <div class="range-toggle" data-target="speedtest">
+          <button data-range="day" class="active">روز</button>
+          <button data-range="week">هفته</button>
+        </div>
+      </div>
+      <span class="hint">سرعت دانلود/آپلود اندازه‌گیری‌شده در طول زمان (مگابیت بر ثانیه)</span>
+      <canvas id="speedtestHistoryChart" height="80"></canvas>
+    </section>
+
     <section class="card card-wide">
       <div class="card-header">
         <h2>تاریخچه‌ی ترافیک</h2>

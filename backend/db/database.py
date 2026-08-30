@@ -24,13 +24,25 @@ engine = create_engine(
 )
 
 if settings.database_url.startswith("sqlite"):
-    # WAL mode lets the API and the two collector processes (separate
-    # containers in docker-compose, all pointed at the same file via a
-    # shared volume) read/write concurrently without "database is locked".
+    # WAL mode lets the API and the collector processes/threads (up to
+    # three now: traffic, connectivity, speedtest — separate containers
+    # in docker-compose, or separate threads in app.py's single-process
+    # mode) read/write concurrently without "database is locked".
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragma(dbapi_connection, _):
         cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
+        try:
+            cursor.execute("PRAGMA journal_mode=WAL")
+        except Exception:
+            # Setting WAL mode itself briefly touches shared-memory/WAL
+            # files that every connection races to create — seen this
+            # raise a transient "disk I/O error" under several threads
+            # opening connections at once during startup. WAL mode only
+            # needs to succeed on *some* connection (it's a property of
+            # the database file, not the connection), so a failure here
+            # just means this one connection falls back to the default
+            # journal mode rather than taking the whole collector down.
+            pass
         cursor.execute("PRAGMA busy_timeout=5000")
         cursor.close()
 

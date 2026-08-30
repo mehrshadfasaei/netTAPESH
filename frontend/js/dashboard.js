@@ -10,6 +10,11 @@
   const liveTableBody = document.querySelector("#liveTable tbody");
   const connectivityStatusEl = document.getElementById("connectivityStatus");
   const alertsListEl = document.getElementById("alertsList");
+  const speedtestRunBtn = document.getElementById("speedtestRunBtn");
+  const speedtestMetaEl = document.getElementById("speedtestMeta");
+  const stPing = document.getElementById("stPing");
+  const stDown = document.getElementById("stDown");
+  const stUp = document.getElementById("stUp");
 
   // "مجموع امروز" per process — refreshed periodically from
   // /api/traffic/history (the persisted, cumulative-since-midnight
@@ -140,6 +145,85 @@
     trafficHistoryChart.update();
   }
 
+  // ---- Speed test ----
+  const speedtestHistoryCtx = document.getElementById("speedtestHistoryChart").getContext("2d");
+  const speedtestHistoryChart = new Chart(speedtestHistoryCtx, {
+    type: "line",
+    data: {
+      datasets: [
+        { label: "دانلود (Mbps)", data: [], borderColor: "#4f8cff", pointRadius: 3, tension: 0.25 },
+        { label: "آپلود (Mbps)", data: [], borderColor: "#33c07c", pointRadius: 3, tension: 0.25 },
+      ],
+    },
+    options: chartOptions({
+      parsing: false,
+      scales: {
+        x: { type: "time", ticks: { color: "#8b93a8" }, grid: { color: "#262f45" } },
+        y: {
+          ticks: { color: "#8b93a8" },
+          grid: { color: "#262f45" },
+          beginAtZero: true,
+          title: { display: true, text: "Mbps", color: "#8b93a8" },
+        },
+      },
+    }),
+  });
+
+  function renderSpeedtestResult(r) {
+    if (!r || r.error) {
+      stPing.textContent = "—";
+      stDown.textContent = "—";
+      stUp.textContent = "—";
+      speedtestMetaEl.textContent = r && r.error ? `آخرین تلاش ناموفق: ${r.error}` : "هنوز تستی انجام نشده.";
+      return;
+    }
+    stPing.textContent = r.ping_ms != null ? `${r.ping_ms.toFixed(0)} ms` : "—";
+    stDown.textContent = r.download_mbps != null ? `${r.download_mbps.toFixed(1)} Mbps` : "—";
+    stUp.textContent = r.upload_mbps != null ? `${r.upload_mbps.toFixed(1)} Mbps` : "—";
+    const when = r.timestamp ? new Date(r.timestamp).toLocaleString("fa-IR") : "";
+    const server = r.server_name ? ` — سرور: ${r.server_name}${r.server_country ? " (" + r.server_country + ")" : ""}` : "";
+    speedtestMetaEl.textContent = `آخرین تست: ${when}${server}`;
+  }
+
+  async function loadSpeedtestLatest() {
+    const res = await fetch("/api/speedtest/latest");
+    const data = await res.json();
+    renderSpeedtestResult(data.result);
+  }
+
+  async function loadSpeedtestHistory(range) {
+    const res = await fetch(`/api/speedtest/history?range=${range}`);
+    const data = await res.json();
+    const download = [];
+    const upload = [];
+    data.results.forEach((r) => {
+      if (r.error) return;
+      const x = new Date(r.timestamp);
+      if (r.download_mbps != null) download.push({ x, y: r.download_mbps });
+      if (r.upload_mbps != null) upload.push({ x, y: r.upload_mbps });
+    });
+    speedtestHistoryChart.data.datasets[0].data = download;
+    speedtestHistoryChart.data.datasets[1].data = upload;
+    speedtestHistoryChart.update();
+  }
+
+  speedtestRunBtn.addEventListener("click", async () => {
+    speedtestRunBtn.disabled = true;
+    speedtestRunBtn.textContent = "در حال تست…";
+    speedtestMetaEl.textContent = "این ممکنه ۱۰ تا ۳۰ ثانیه طول بکشه…";
+    try {
+      const res = await fetch("/api/speedtest/run", { method: "POST" });
+      const result = await res.json();
+      renderSpeedtestResult(result);
+      loadSpeedtestHistory(document.querySelector('.range-toggle[data-target="speedtest"] button.active').dataset.range);
+    } catch (e) {
+      speedtestMetaEl.textContent = "خطا در اجرای تست.";
+    } finally {
+      speedtestRunBtn.disabled = false;
+      speedtestRunBtn.textContent = "تست کن الان";
+    }
+  });
+
   // ---- Connectivity history chart ----
   const connectivityHistoryCtx = document.getElementById("connectivityHistoryChart").getContext("2d");
   const connectivityHistoryChart = new Chart(connectivityHistoryCtx, {
@@ -182,6 +266,7 @@
       const range = e.target.dataset.range;
       toggle.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b === e.target));
       if (toggle.dataset.target === "traffic") loadTrafficHistory(range);
+      else if (toggle.dataset.target === "speedtest") loadSpeedtestHistory(range);
       else loadConnectivityHistory(range);
     });
   });
@@ -245,12 +330,16 @@
   }
 
   // ---- Initial load + polling ----
+  const SPEEDTEST_POLL_MS = 30000;
   loadTrafficHistory("day");
   loadConnectivityHistory("day");
   loadConnectivityStatus();
   loadAlerts();
   refreshTodayTotals();
+  loadSpeedtestLatest();
+  loadSpeedtestHistory("day");
   setInterval(loadConnectivityStatus, CONNECTIVITY_POLL_MS);
   setInterval(loadAlerts, ALERTS_POLL_MS);
   setInterval(refreshTodayTotals, TODAY_TOTAL_POLL_MS);
+  setInterval(loadSpeedtestLatest, SPEEDTEST_POLL_MS);
 })();

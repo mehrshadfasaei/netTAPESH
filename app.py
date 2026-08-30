@@ -20,7 +20,7 @@ import webbrowser
 
 import uvicorn
 
-from backend.collectors import connectivity_collector, traffic_collector
+from backend.collectors import connectivity_collector, speedtest_collector, traffic_collector
 from backend.main import app
 
 
@@ -35,6 +35,7 @@ def main() -> None:
 
     threading.Thread(target=traffic_collector.run_forever, daemon=True).start()
     threading.Thread(target=connectivity_collector.run_forever, daemon=True).start()
+    threading.Thread(target=speedtest_collector.run_forever, daemon=True).start()
     threading.Thread(target=_open_browser_when_ready, args=(url,), daemon=True).start()
 
     print(f"netTAPESH starting at {url} — opening your browser shortly...")

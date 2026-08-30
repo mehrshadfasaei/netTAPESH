@@ -29,3 +29,10 @@ services:
     volumes:
       - ./data:/app/data
     restart: unless-stopped
+
+  speedtest-collector:
+    build: .
+    command: ["python", "-m", "backend.collectors.speedtest_collector"]
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
