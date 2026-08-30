@@ -34,15 +34,25 @@ nothing writes to them yet. Docker packaging is in progress.
 
 ## Known limitations (read this before judging the traffic numbers)
 
-- **Per-process byte counts are not available in this version.**
-  `psutil` cannot report per-process bytes sent/received on Linux without
-  root and a privileged tool like `nethogs` or an eBPF-based collector.
-  Rather than requiring `sudo` for what's meant to be a
-  `docker-compose up`-and-go tool, the traffic collector currently
-  reports **active connection counts per process** (which app is talking
-  to which host, and how many open connections it has) instead of exact
-  data volume. Accurate byte-level tracking via `nethogs`/eBPF is on the
-  roadmap as an opt-in, privileged mode.
+- **Real per-process MB tracking works on Windows only, and needs
+  Administrator.** On Windows, running natively as Administrator with
+  `pywintrace` installed, the traffic collector uses ETW (the same
+  mechanism behind Task Manager/Resource Monitor's own "Network" column)
+  to report real bytes sent/received per process — see "Running
+  natively" below for the exact setup. Everywhere else (Linux/macOS, or
+  Windows without admin/`pywintrace`), `psutil` cannot report per-process
+  byte counts without root and a privileged tool like `nethogs` or an
+  eBPF-based collector, so the traffic collector falls back to
+  **active connection counts per process** (which app is talking to
+  which host, and how many open connections it has) instead of exact
+  data volume — the dashboard shows "—" for MB in that mode.
+  **Caveat on the Windows/ETW path specifically: it was written and
+  reasoned through against Microsoft's documented
+  Microsoft-Windows-Kernel-Network provider and the `pywintrace` API,
+  but not run end-to-end on a real Windows box while building it** (this
+  environment has no Windows machine) — if the numbers stay at "—" even
+  running as Administrator, see the debug comment at the top of
+  `traffic_collector_windows.py`.
 - **No automated alerting.** The alert rules described in the original
   spec (high usage / connection down / high latency) and Telegram
   notifications are not implemented. `/api/alerts` and the `alerts` table
@@ -99,6 +109,23 @@ python -m backend.collectors.connectivity_collector
 
 Open `http://localhost:8000`. API docs (Swagger UI): `http://localhost:8000/docs`
 
+### Windows: getting real MB numbers instead of connection counts
+
+1. Open a terminal **as Administrator** (right-click → Run as
+   administrator) — ETW real-time trace sessions require it.
+2. In that elevated terminal, activate the venv and run both the API and
+   the traffic collector from there (`pywintrace` is already in
+   `requirements.txt` and only installs on Windows).
+3. Look for this line when the traffic collector starts:
+   ```
+   [traffic_collector] Windows ETW byte sampler active — bytes_sent/bytes_recv are real values
+   ```
+   If instead you see `Windows byte sampler unavailable (...)`, it printed
+   the reason (not elevated, `pywintrace` missing, or something else) —
+   fix that and restart.
+4. The dashboard's "مصرف (MB)" column and the traffic-history chart
+   switch to real megabytes automatically once bytes start coming in.
+
 ## Running with Docker
 
 ```bash
@@ -135,7 +162,9 @@ zero-config).
 ## Roadmap
 
 - Alert rule engine + Telegram notifications (skipped in this version)
-- Privileged traffic mode (nethogs/eBPF) for real byte-level per-process usage
+- Real per-process MB tracking on Linux/macOS too (nethogs/eBPF) — Windows
+  already has it via ETW, see "Running natively" above
 - Multi-device support (home-network-wide monitoring)
-- Windows/macOS collectors
+- macOS traffic collector (Windows and Linux are covered; macOS still
+  falls back to the connection-count proxy)
 - CI (GitHub Actions): lint + test on every push

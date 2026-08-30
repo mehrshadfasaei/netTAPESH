@@ -17,8 +17,13 @@ import json
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from backend.collectors.traffic_collector import sample_processes
+from backend.collectors.traffic_collector import _start_windows_byte_sampler, sample_processes
 from backend.config import settings
+
+# Separate sampler instance from the standalone traffic_collector process
+# (this runs inside the API process, e.g. under uvicorn) — same Windows
+# ETW mechanism, own accumulation window, started once at import time.
+_byte_sampler = _start_windows_byte_sampler()
 
 
 class ConnectionManager:
@@ -66,19 +71,33 @@ async def traffic_live_endpoint(websocket: WebSocket) -> None:
 
 async def broadcast_loop() -> None:
     """Runs for the lifetime of the app; samples and pushes to whoever is
-    connected. No-ops cheaply when nobody is listening."""
+    connected. Draining the byte sampler every tick (not just when
+    someone's connected) keeps each window's bytes meaningful instead of
+    dumping an hour of backlog on the first client that connects."""
     while True:
+        byte_deltas = _byte_sampler.snapshot_and_reset() if _byte_sampler else None
         if manager.has_clients:
             # sample_processes() walks every running process synchronously;
             # off the event loop so a slow psutil scan doesn't stall other
             # connections.
-            samples = await asyncio.to_thread(sample_processes)
-            top = sorted(samples, key=lambda s: s.connection_count, reverse=True)[:20]
+            samples = await asyncio.to_thread(sample_processes, byte_deltas)
+            sort_key = (
+                (lambda s: (s.bytes_sent or 0) + (s.bytes_recv or 0))
+                if byte_deltas
+                else (lambda s: s.connection_count)
+            )
+            top = sorted(samples, key=sort_key, reverse=True)[:20]
             await manager.broadcast(
                 {
                     "type": "traffic_snapshot",
                     "processes": [
-                        {"pid": s.pid, "name": s.name, "connection_count": s.connection_count}
+                        {
+                            "pid": s.pid,
+                            "name": s.name,
+                            "connection_count": s.connection_count,
+                            "bytes_sent": s.bytes_sent,
+                            "bytes_recv": s.bytes_recv,
+                        }
                         for s in top
                     ],
                 }
