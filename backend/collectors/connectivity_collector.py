@@ -108,10 +108,6 @@ def run_forever() -> None:
 
 
 if __name__ == "__main__":
-    collector = ConnectivityCollector()
-    while True:
-        results = collector.poll_once()
-        print(f"\n=== {time.strftime('%H:%M:%S')} ===")
-        for r in results:
-            print(f"  {r.host:<15} status={r.status:<4} latency={r.latency_ms}ms loss={r.packet_loss_pct}%")
-        time.sleep(settings.connectivity_poll_interval_sec)
+    # This is what docker-compose and the README run in production — it
+    # persists to the DB.
+    run_forever()

@@ -84,11 +84,8 @@ def run_forever() -> None:
 
 
 if __name__ == "__main__":
-    # Phase 1 behaviour: just print, no DB writes, for a fast sanity check.
-    while True:
-        samples = sample_processes()
-        top = sorted(samples, key=lambda s: s.connection_count, reverse=True)[:10]
-        print(f"\n=== {time.strftime('%H:%M:%S')} — {len(samples)} active processes ===")
-        for s in top:
-            print(f"  pid={s.pid:<7} {s.name:<25} connections={s.connection_count}")
-        time.sleep(settings.traffic_poll_interval_sec)
+    # This is what docker-compose and the README run in production — it
+    # persists to the DB. For a quick print-only sanity check without
+    # touching the database, call sample_processes() directly in a repl
+    # instead (see the phase-1 example in the README).
+    run_forever()
