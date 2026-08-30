@@ -89,7 +89,7 @@ class WindowsByteSampler:
         self._bytes_sent: dict[int, int] = defaultdict(int)
         self._bytes_recv: dict[int, int] = defaultdict(int)
         self._etw = None
-        self._logged_sample_keys = False
+        self._logged_events = 0
 
     def _on_event(self, event_tuple) -> None:
         event_id, event = event_tuple
@@ -98,12 +98,13 @@ class WindowsByteSampler:
         if task_name.upper().replace("-", "").replace("_", "") == "" :
             return
 
-        # One-time debug aid: if bytes never accumulate on a real run,
-        # uncomment this to see exactly what pywintrace parsed for one
-        # event, then fix the field names read below to match.
-        # if not self._logged_sample_keys:
-        #     logger.warning("Sample Kernel-Network event fields: %s", event)
-        #     self._logged_sample_keys = True
+        # Debug aid, on by default for the first few events: prints exactly
+        # what pywintrace parsed so field-name mismatches are visible
+        # immediately instead of showing up only as "MB stays at —". Safe
+        # to leave on — capped at 3 prints total, then silent.
+        if self._logged_events < 3:
+            print(f"[traffic_collector_windows] sample event #{self._logged_events + 1}: {event}")
+            self._logged_events += 1
 
         header = event.get("EventHeader", {}) or {}
         pid = header.get("ProcessId")

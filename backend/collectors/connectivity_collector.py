@@ -1,14 +1,15 @@
 """
 Phase 3 — connectivity collector.
 
-Shells out to the system `ping` binary (rather than a raw-socket library
-like `ping3`) specifically so this does NOT need root/admin — `ping` on
-Linux carries its own setuid/capability handling already.
+Shells out to ping rather than a raw-socket library (like `ping3`)
+specifically so this does NOT need root/admin — see the two
+platform-specific implementations below for why they're split.
 """
 from __future__ import annotations
 
 import re
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 
@@ -32,6 +33,53 @@ class PingResult:
 
 
 def ping_host(host: str, timeout_sec: float) -> PingResult:
+    if sys.platform == "win32":
+        return _ping_host_windows(host, timeout_sec)
+    return _ping_host_unix(host, timeout_sec)
+
+
+def _ping_host_windows(host: str, timeout_sec: float) -> PingResult:
+    """
+    Deliberately does NOT shell out to ping.exe and parse its text output
+    — that output is localized to the system's display language (a
+    Persian-language Windows install prints entirely different text than
+    English), which would silently break an English-only regex. Instead
+    this drives .NET's System.Net.NetworkInformation.Ping directly via
+    PowerShell: the IPStatus enum's .ToString() ("Success"/"TimedOut"/…)
+    and the numeric RoundtripTime are not localized, so parsing them is
+    reliable regardless of system language.
+    """
+    timeout_ms = int(max(1, timeout_sec) * 1000)
+    ps_script = (
+        "$p = New-Object System.Net.NetworkInformation.Ping; "
+        f"$r = $p.Send('{host}', {timeout_ms}); "
+        'Write-Output "$($r.Status);$($r.RoundtripTime)"'
+    )
+    try:
+        proc = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script],
+            capture_output=True,
+            text=True,
+            timeout=timeout_sec + 3,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return PingResult(host=host, latency_ms=None, packet_loss_pct=100.0, status="down")
+
+    stdout = proc.stdout.strip()
+    line = stdout.splitlines()[-1] if stdout else ""
+    parts = line.split(";")
+    if len(parts) != 2 or parts[0].strip() != "Success":
+        return PingResult(host=host, latency_ms=None, packet_loss_pct=100.0, status="down")
+
+    try:
+        latency = float(parts[1].strip())
+    except ValueError:
+        latency = None
+
+    return PingResult(host=host, latency_ms=latency, packet_loss_pct=0.0, status="up")
+
+
+def _ping_host_unix(host: str, timeout_sec: float) -> PingResult:
     try:
         proc = subprocess.run(
             ["ping", "-c", "1", "-W", str(max(1, int(timeout_sec))), host],
