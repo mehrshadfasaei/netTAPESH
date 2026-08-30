@@ -1,16 +1,32 @@
 /**
- * Client-side speed test: pings, downloads, and uploads against this
- * server's own /api/speedtest/* endpoints (see backend/api/routes.py) —
- * all the actual timing happens here in the browser, the server just
- * sources/sinks bytes.
+ * Client-side speed test against this server's own /api/speedtest/*
+ * endpoints. Follows the same methodology real speed test services use
+ * (Speedtest.net/fast.com), not a naive single-request timing:
+ *
+ *  1. Ping measured *before* the load test, via several sequential
+ *     round trips to an endpoint that does nothing — measuring latency
+ *     while the link is idle, not while it's saturated by the load test.
+ *  2. Download/upload use several PARALLEL connections (a single TCP
+ *     stream often can't saturate a fast link — window scaling and
+ *     congestion control limit one stream's throughput well below the
+ *     link's real capacity).
+ *  3. Tests are DURATION-based, not size-based: run for a fixed window
+ *     and see how many bytes moved, rather than requesting N bytes and
+ *     waiting for them to finish (which either finishes almost
+ *     instantly on a fast link, measuring nothing meaningful, or drags
+ *     on forever on a slow one).
+ *  4. The first second of each test is discarded from the throughput
+ *     calculation — TCP's slow-start ramp means early throughput
+ *     under-reports the link's steady-state speed.
  */
 (function () {
   const PING_SAMPLES = 10;
-  const DOWNLOAD_BYTES = 25_000_000;
-  const UPLOAD_BYTES = 15_000_000;
+  const PARALLEL_CONNECTIONS = 4;
+  const TEST_DURATION_MS = 8000;
+  const WARMUP_MS = 1000;
+  const UPDATE_INTERVAL_MS = 200;
 
   const runBtn = document.getElementById("runBtn");
-  const runBtnLabel = document.getElementById("runBtnLabel");
   const testPhaseEl = document.getElementById("testPhase");
   const rPing = document.getElementById("rPing");
   const rDown = document.getElementById("rDown");
@@ -22,6 +38,7 @@
     return (bytes * 8) / (seconds * 1_000_000);
   }
 
+  // ---- Ping (sequential, before any load on the link) ----
   async function measurePing() {
     const samples = [];
     for (let i = 0; i < PING_SAMPLES; i++) {
@@ -36,39 +53,98 @@
     return { ping_ms: median, jitter_ms: jitter };
   }
 
-  async function measureDownload() {
+  /**
+   * Runs `workerFn` on PARALLEL_CONNECTIONS lanes for TEST_DURATION_MS,
+   * calling `onBytes(n)` from any lane whenever it moves n more bytes,
+   * and `onTick()` roughly every UPDATE_INTERVAL_MS with the live
+   * warmup-adjusted Mbps so far. Returns the final Mbps, computed only
+   * from bytes moved after WARMUP_MS (see module docstring point 4).
+   */
+  async function runParallelTest(workerFn, onTick) {
+    let totalBytes = 0;
+    let bytesAtWarmup = null;
     const t0 = performance.now();
-    const res = await fetch(`/api/speedtest/download?bytes=${DOWNLOAD_BYTES}`, { cache: "no-store" });
-    const reader = res.body.getReader();
-    let received = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      received += value.length;
-      const elapsed = (performance.now() - t0) / 1000;
-      rDown.textContent = mbps(received, elapsed).toFixed(1);
+    const controller = new AbortController();
+
+    const tickTimer = setInterval(() => {
+      const elapsedMs = performance.now() - t0;
+      if (bytesAtWarmup === null && elapsedMs >= WARMUP_MS) {
+        bytesAtWarmup = totalBytes;
+      }
+      if (bytesAtWarmup !== null) {
+        const steadySec = (elapsedMs - WARMUP_MS) / 1000;
+        onTick(mbps(totalBytes - bytesAtWarmup, steadySec));
+      }
+    }, UPDATE_INTERVAL_MS);
+
+    const abortTimer = setTimeout(() => controller.abort(), TEST_DURATION_MS);
+
+    const lanes = Array.from({ length: PARALLEL_CONNECTIONS }, () =>
+      workerFn(controller.signal, (n) => {
+        totalBytes += n;
+      })
+    );
+    await Promise.allSettled(lanes);
+
+    clearInterval(tickTimer);
+    clearTimeout(abortTimer);
+
+    const totalElapsedMs = performance.now() - t0;
+    if (bytesAtWarmup === null) {
+      // Test ended before warmup elapsed (very slow link, or aborted
+      // early) — fall back to the whole window rather than reporting 0.
+      return mbps(totalBytes, totalElapsedMs / 1000);
     }
-    const elapsed = (performance.now() - t0) / 1000;
-    return mbps(received, elapsed);
+    const steadySec = (totalElapsedMs - WARMUP_MS) / 1000;
+    return mbps(totalBytes - bytesAtWarmup, steadySec);
+  }
+
+  // ---- Download: N parallel streams, each requesting far more than
+  // could be consumed in TEST_DURATION_MS, aborted when time's up ----
+  async function downloadLane(signal, onBytes) {
+    try {
+      const res = await fetch("/api/speedtest/download", { signal, cache: "no-store" });
+      const reader = res.body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        onBytes(value.length);
+      }
+    } catch (e) {
+      // aborted when the test window ended — expected, not an error
+    }
+  }
+
+  function measureDownload() {
+    return runParallelTest(downloadLane, (liveMbps) => {
+      rDown.textContent = liveMbps.toFixed(1);
+    });
+  }
+
+  // ---- Upload: N parallel lanes, each looping fixed-size chunk POSTs
+  // (not one giant body — keeps browser memory bounded) until aborted ----
+  const UPLOAD_CHUNK_BYTES = 4_000_000;
+  const _uploadBuffer = new Uint8Array(UPLOAD_CHUNK_BYTES);
+
+  async function uploadLane(signal, onBytes) {
+    try {
+      while (!signal.aborted) {
+        await fetch("/api/speedtest/upload", {
+          method: "POST",
+          body: _uploadBuffer,
+          signal,
+          cache: "no-store",
+        });
+        onBytes(UPLOAD_CHUNK_BYTES);
+      }
+    } catch (e) {
+      // aborted mid-chunk — that partial chunk is simply not counted
+    }
   }
 
   function measureUpload() {
-    return new Promise((resolve, reject) => {
-      const data = new Uint8Array(UPLOAD_BYTES);
-      const xhr = new XMLHttpRequest();
-      const t0 = performance.now();
-      xhr.open("POST", "/api/speedtest/upload");
-      xhr.upload.onprogress = (e) => {
-        if (!e.lengthComputable) return;
-        const elapsed = (performance.now() - t0) / 1000;
-        rUp.textContent = mbps(e.loaded, elapsed).toFixed(1);
-      };
-      xhr.onload = () => {
-        const elapsed = (performance.now() - t0) / 1000;
-        resolve(mbps(UPLOAD_BYTES, elapsed));
-      };
-      xhr.onerror = () => reject(new Error("upload failed"));
-      xhr.send(data);
+    return runParallelTest(uploadLane, (liveMbps) => {
+      rUp.textContent = liveMbps.toFixed(1);
     });
   }
 

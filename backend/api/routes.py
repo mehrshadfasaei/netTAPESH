@@ -45,9 +45,11 @@ def speedtest_ping():
 @router.get("/speedtest/download")
 def speedtest_download(bytes: int = Query(default=None, ge=1)):
     """Streams `bytes` (default settings.default_download_bytes, capped
-    at settings.max_test_bytes) of random data. The client measures
-    elapsed time against Content-Length itself."""
-    total = min(bytes or settings.default_download_bytes, settings.max_test_bytes)
+    at settings.max_download_bytes) of random data. Deliberately large —
+    the client (frontend/js/speedtest.js) runs several of these in
+    parallel and aborts them once its test duration elapses, rather than
+    waiting for any one of them to finish; see module docstring."""
+    total = min(bytes or settings.default_download_bytes, settings.max_download_bytes)
 
     def generate():
         remaining = total
@@ -70,7 +72,7 @@ async def speedtest_upload(request: Request):
     The client measures elapsed time against the bytes *it sent*, not
     this response — this endpoint is just a sink."""
     total = 0
-    cap = settings.max_test_bytes
+    cap = settings.upload_chunk_bytes * 4  # generous slack over one client chunk
     async for chunk in request.stream():
         total += len(chunk)
         if total > cap:
