@@ -56,6 +56,18 @@ nothing writes to them yet. Docker packaging is in progress.
   connectivity. No packet payloads are inspected or stored.
 - **Platform.** Built and tested on Linux. Cross-platform support
   (Windows/macOS) is not a current goal.
+- **Traffic monitoring cannot see host processes when containerized on
+  Windows/macOS.** This is the single most important limitation to
+  understand: `psutil` inside a container only ever sees that
+  container's own process tree. On Linux, `pid: host` in
+  docker-compose fixes this. On Windows/macOS, Docker Desktop runs
+  everything inside a Linux VM that has zero visibility into native
+  Windows/macOS processes — no compose flag gets around that, it's
+  architectural. So on Windows/macOS: **run the API and the traffic
+  collector natively (not in Docker)** if you want to see your actual
+  running apps; Docker there is only useful for the connectivity
+  monitoring half, or for a portfolio demo of the container's own
+  traffic. See "Running natively" below.
 - **No authentication.** This is a personal/portfolio tool for local use,
   not meant to be exposed to the internet.
 
@@ -64,27 +76,16 @@ nothing writes to them yet. Docker packaging is in progress.
 Python 3.11+ / FastAPI · psutil · SQLite (SQLAlchemy, WAL mode) ·
 WebSocket · Vanilla JS + Chart.js · Docker / docker-compose
 
-## Running with Docker (recommended)
+## Running natively (recommended on Windows/macOS, or to see real traffic on Linux too)
 
-```bash
-docker compose up --build
-```
-
-That's it — no `sudo`, no manual dependency install. This starts three
-containers sharing one SQLite volume: the API/dashboard (port `8000`),
-the traffic collector, and the connectivity collector. Open
-`http://localhost:8000`.
-
-To change thresholds or poll intervals, copy `.env.example` to `.env`,
-edit it, and add an `env_file: [.env]` line to each service in
-`docker-compose.yml` (left out by default so the zero-config path stays
-zero-config).
-
-## Running locally (development, without Docker)
+This is the only way to see your actual running apps in the traffic
+view — see "Known limitations" above for why Docker can't do this on
+Windows/macOS.
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
+# Windows: .venv\Scripts\activate
+source .venv/bin/activate   # macOS/Linux
 pip install -r requirements.txt
 cp .env.example .env   # optional — adjust thresholds/targets if you want
 
@@ -96,7 +97,29 @@ python -m backend.collectors.traffic_collector
 python -m backend.collectors.connectivity_collector
 ```
 
-API docs (Swagger UI) once the server is running: `http://localhost:8000/docs`
+Open `http://localhost:8000`. API docs (Swagger UI): `http://localhost:8000/docs`
+
+## Running with Docker
+
+```bash
+docker compose up --build
+```
+
+No `sudo`, no manual dependency install. This starts the API/dashboard
+(port `8000`) and the connectivity collector, sharing one SQLite file at
+`./data/netpulse.db` via a bind mount (not a named volume — that's
+deliberate, see next paragraph). **`traffic-collector` is intentionally
+not a Docker service** — see "Known limitations" above. To also see
+per-app traffic while the rest runs in Docker, run just the traffic
+collector natively alongside it (same venv steps above, just the one
+command: `python -m backend.collectors.traffic_collector`), pointed at
+the same `./data/netpulse.db` — the bind mount is what makes that
+shared file possible.
+
+To change thresholds or poll intervals, copy `.env.example` to `.env`,
+edit it, and add an `env_file: [.env]` line to each service in
+`docker-compose.yml` (left out by default so the zero-config path stays
+zero-config).
 
 ## API
 
