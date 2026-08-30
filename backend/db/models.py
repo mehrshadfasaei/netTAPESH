@@ -49,6 +49,29 @@ class ConnectivityLog(Base):
     status: Mapped[str] = mapped_column(String)  # "up" | "down"
 
 
+class SpeedtestLog(Base):
+    """
+    Full ping+download+upload speed tests (via speedtest-cli against
+    public Speedtest.net-network servers), run on a much longer interval
+    than connectivity_log's frequent up/down pings — a real bandwidth
+    test moves real data and shouldn't run every 10s. See
+    speedtest_collector.py.
+    """
+    __tablename__ = "speedtest_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    ping_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    download_mbps: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    upload_mbps: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    server_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    server_country: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # Set when the test itself failed (network error, no servers found,
+    # etc.) rather than ran and measured something — every numeric field
+    # above stays NULL in that case, not 0.
+    error: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
 class Alert(Base):
     __tablename__ = "alerts"
 

@@ -11,9 +11,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from backend.collectors.speedtest_collector import persist_result, run_speedtest
 from backend.config import settings
 from backend.db.database import get_session
-from backend.db.models import Alert, ConnectivityLog, TrafficLog
+from backend.db.models import Alert, ConnectivityLog, SpeedtestLog, TrafficLog
 
 router = APIRouter(prefix="/api")
 
@@ -113,6 +114,63 @@ def connectivity_history(range: RangeParam = "day", session: Session = Depends(g
             }
             for r in rows
         ],
+    }
+
+
+def _speedtest_row_to_dict(r: SpeedtestLog) -> dict:
+    return {
+        "timestamp": r.timestamp.isoformat(),
+        "ping_ms": r.ping_ms,
+        "download_mbps": r.download_mbps,
+        "upload_mbps": r.upload_mbps,
+        "server_name": r.server_name,
+        "server_country": r.server_country,
+        "error": r.error,
+    }
+
+
+@router.get("/speedtest/latest")
+def speedtest_latest(session: Session = Depends(get_session)):
+    row = session.execute(
+        select(SpeedtestLog).order_by(SpeedtestLog.timestamp.desc()).limit(1)
+    ).scalar_one_or_none()
+    if row is None:
+        return {"result": None}
+    return {"result": _speedtest_row_to_dict(row)}
+
+
+@router.get("/speedtest/history")
+def speedtest_history(range: RangeParam = "day", session: Session = Depends(get_session)):
+    since = _range_start(range)
+    rows = session.execute(
+        select(SpeedtestLog)
+        .where(SpeedtestLog.timestamp >= since)
+        .order_by(SpeedtestLog.timestamp.asc())
+    ).scalars().all()
+    return {
+        "range": range,
+        "since": since.isoformat(),
+        "results": [_speedtest_row_to_dict(r) for r in rows],
+    }
+
+
+@router.post("/speedtest/run")
+def speedtest_run():
+    """
+    Runs a full speed test on demand ("Test Now" button) and blocks
+    until it finishes (~10-30s is normal). FastAPI runs sync route
+    functions in a worker thread by default, so this doesn't block the
+    event loop / other requests or the live websocket while it runs.
+    """
+    result = run_speedtest()
+    persist_result(result)
+    return {
+        "ping_ms": result.ping_ms,
+        "download_mbps": result.download_mbps,
+        "upload_mbps": result.upload_mbps,
+        "server_name": result.server_name,
+        "server_country": result.server_country,
+        "error": result.error,
     }
 
 
