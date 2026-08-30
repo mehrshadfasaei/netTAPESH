@@ -126,28 +126,42 @@ Open `http://localhost:8000`. API docs (Swagger UI): `http://localhost:8000/docs
 4. The dashboard's "مصرف (MB)" column and the traffic-history chart
    switch to real megabytes automatically once bytes start coming in.
 
-## Single-file download (Windows) — no terminal, no Administrator
+## Single-file download (Windows)
 
-For a true download-and-double-click experience (no venv, no terminals,
-no admin prompt), `app.py` runs the API and both collectors in one
-process and opens the dashboard in your browser automatically. Trade-off:
-without Administrator, ETW can't start, so this mode always uses the
-connection-count proxy rather than real MB numbers (see "Known
-limitations" — chosen deliberately over requiring UAC just to launch).
+`app.py` runs the API and both collectors in one process and opens the
+dashboard in your browser automatically — no venv, no terminals, no
+manually elevated Command Prompt. This is the same trade-off real tools
+in this category make (GlassWire, NetLimiter, …): they all need
+Administrator too, just via a driver installed once at setup time
+instead of a per-run prompt — building an actual signed kernel driver is
+far outside this project's scope, so the exe instead requests elevation
+itself on every launch via `--uac-admin` below, which is one standard
+UAC "Yes" click, not a manual terminal dance.
 
 **Build it once** (on a Windows machine, inside the activated venv):
 ```cmd
 pip install pyinstaller
-pyinstaller --onefile --name netTAPESH --add-data "frontend;frontend" app.py
+pyinstaller --onefile --uac-admin --name netTAPESH --add-data "frontend;frontend" app.py
 ```
+`--uac-admin` embeds a manifest that makes Windows show the standard UAC
+prompt the moment `netTAPESH.exe` is double-clicked — accept it once per
+launch and the process is elevated from the start, so the ETW byte
+sampler (real MB numbers) works automatically with no extra steps.
+Without accepting it, Windows won't start the exe at all rather than
+silently running unelevated.
+
 This produces `dist\netTAPESH.exe` — a single file with everything
 bundled in. Verified end-to-end on Linux while building this (API +
 both collectors running as threads in one process, dashboard served,
-both DB tables getting written) but **the actual Windows `.exe` itself
-hasn't been produced or run** — PyInstaller doesn't cross-compile, a
-Windows build has to happen on Windows. Run the command above once,
-then just double-click `netTAPESH.exe` from then on; share that one
-file with anyone who wants to run it the same way.
+both DB tables getting written, live view fixed after a Windows-only
+psutil/asyncio.to_thread threading bug found via real testing) but
+**the actual Windows `.exe` itself, and the `--uac-admin` manifest
+specifically, haven't been produced or run here** — PyInstaller doesn't
+cross-compile, a Windows build has to happen on Windows, and the
+elevation-manifest behavior needs confirming on a real launch. Run the
+build command above once, then just double-click `netTAPESH.exe` (accept
+the UAC prompt) from then on; share that one file with anyone who wants
+to run it the same way.
 
 ## Running with Docker
 
