@@ -24,7 +24,13 @@
       const data = await res.json();
       const next = {};
       data.processes.forEach((p) => {
-        next[p.process_name] = (p.total_mb_sent || 0) + (p.total_mb_recv || 0);
+        // `null || 0` would silently turn "we don't know" into "zero" —
+        // only compute a real number when at least one side is actually
+        // measured (connection-count-only mode leaves both null).
+        next[p.process_name] =
+          p.total_mb_sent == null && p.total_mb_recv == null
+            ? null
+            : (p.total_mb_sent || 0) + (p.total_mb_recv || 0);
       });
       todayTotalsByName = next;
     } catch (e) {
