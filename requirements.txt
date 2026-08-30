@@ -1,7 +1,7 @@
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 psutil==7.0.0
-sqlalchemy==2.0.35
+sqlalchemy==2.0.52
 pydantic-settings==2.5.2
 requests==2.32.3
 websockets==13.1
