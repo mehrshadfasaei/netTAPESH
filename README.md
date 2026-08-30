@@ -15,18 +15,20 @@ Two things, on one machine:
 
 ## Status
 
-Implemented so far: traffic collector, connectivity collector, SQLite
-storage, and the REST API (history/status/alerts/settings endpoints).
-WebSocket live streaming, the frontend dashboard, Telegram alerting, and
-Docker packaging are still in progress — see the phases below.
+Traffic + connectivity collectors, SQLite storage, the REST API,
+WebSocket live streaming, and the frontend dashboard are implemented and
+working end to end. Automated alerting (rule engine + Telegram
+notifications) is intentionally out of scope for this version — the
+`/api/alerts` endpoint and `alerts` table exist and are ready for it, but
+nothing writes to them yet. Docker packaging is in progress.
 
 - [x] Phase 1 — standalone traffic collector
 - [x] Phase 2 — SQLite storage
 - [x] Phase 3 — connectivity collector
 - [x] Phase 4 — REST API
-- [ ] Phase 5 — WebSocket live streaming
-- [ ] Phase 6 — frontend dashboard
-- [ ] Phase 7 — alerting (Telegram)
+- [x] Phase 5 — WebSocket live streaming
+- [x] Phase 6 — frontend dashboard
+- [ ] ~~Phase 7 — alerting (Telegram)~~ — skipped for this version, see below
 - [ ] Phase 8 — Docker + docs
 - [ ] Phase 9 — CI/CD
 
@@ -41,6 +43,11 @@ Docker packaging are still in progress — see the phases below.
   to which host, and how many open connections it has) instead of exact
   data volume. Accurate byte-level tracking via `nethogs`/eBPF is on the
   roadmap as an opt-in, privileged mode.
+- **No automated alerting.** The alert rules described in the original
+  spec (high usage / connection down / high latency) and Telegram
+  notifications are not implemented. `/api/alerts` and the `alerts` table
+  are in place for it, but nothing populates them — this is a deliberate
+  scope cut, not a bug, and it's the first thing on the roadmap below.
 - **Single device only.** This monitors the machine it runs on, not a
   whole home network. Multi-device support is a future direction, not
   in scope for this version.
@@ -54,18 +61,34 @@ Docker packaging are still in progress — see the phases below.
 
 ## Tech stack
 
-Python 3.11+ / FastAPI · psutil · SQLite (SQLAlchemy) · WebSocket ·
-Vanilla JS + Chart.js · Telegram Bot API · Docker
+Python 3.11+ / FastAPI · psutil · SQLite (SQLAlchemy, WAL mode) ·
+WebSocket · Vanilla JS + Chart.js · Docker / docker-compose
 
-## Running locally (development)
+## Running with Docker (recommended)
+
+```bash
+docker compose up --build
+```
+
+That's it — no `sudo`, no manual dependency install. This starts three
+containers sharing one SQLite volume: the API/dashboard (port `8000`),
+the traffic collector, and the connectivity collector. Open
+`http://localhost:8000`.
+
+To change thresholds or poll intervals, copy `.env.example` to `.env`,
+edit it, and add an `env_file: [.env]` line to each service in
+`docker-compose.yml` (left out by default so the zero-config path stays
+zero-config).
+
+## Running locally (development, without Docker)
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # adjust thresholds/targets if you want
+cp .env.example .env   # optional — adjust thresholds/targets if you want
 
-# Run the API
+# Run the API + dashboard
 uvicorn backend.main:app --reload
 
 # Run the collectors (separate terminals)
@@ -79,15 +102,17 @@ API docs (Swagger UI) once the server is running: `http://localhost:8000/docs`
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/api/traffic/live` | WebSocket — live per-process activity (phase 5) |
+| WS | `/api/traffic/live` | WebSocket — live per-process activity |
 | GET | `/api/traffic/history?range=day\|week` | Historical traffic data |
 | GET | `/api/connectivity/status` | Current connection status per target host |
 | GET | `/api/connectivity/history?range=day\|week` | Historical latency/outage data |
-| GET | `/api/alerts` | Recent alerts |
-| POST | `/api/settings` | Update alert thresholds |
+| GET | `/api/alerts` | Recent alerts (currently always empty — see limitations) |
+| POST | `/api/settings` | Accepts threshold overrides (not yet persisted at runtime) |
 
 ## Roadmap
 
+- Alert rule engine + Telegram notifications (skipped in this version)
 - Privileged traffic mode (nethogs/eBPF) for real byte-level per-process usage
 - Multi-device support (home-network-wide monitoring)
 - Windows/macOS collectors
+- CI (GitHub Actions): lint + test on every push
