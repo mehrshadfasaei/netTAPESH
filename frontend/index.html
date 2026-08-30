@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="fa" dir="rtl">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NetPulse</title>
+  <title>netTAPESH</title>
   <link rel="stylesheet" href="/css/style.css" />
   <!-- Vendored locally (not loaded from a CDN) so the dashboard works
        fully offline / behind restrictive firewalls, with no external
@@ -13,20 +13,20 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>NetPulse</h1>
-    <span id="conn-indicator" class="badge badge-unknown">connecting…</span>
+    <h1>netTAPESH <span class="subtitle">مانیتور شبکه و اینترنت</span></h1>
+    <span id="conn-indicator" class="badge badge-unknown">در حال اتصال…</span>
   </header>
 
   <main class="grid">
     <section class="card card-wide">
       <div class="card-header">
-        <h2>Live process activity</h2>
-        <span class="hint">open connections per process, right now</span>
+        <h2>فعالیت زنده‌ی برنامه‌ها</h2>
+        <span class="hint">تعداد کانکشن‌های باز هر برنامه، همین الان</span>
       </div>
       <canvas id="liveChart" height="90"></canvas>
       <table id="liveTable" class="table">
         <thead>
-          <tr><th>Process</th><th>PID</th><th>Connections</th></tr>
+          <tr><th>برنامه</th><th>شناسه پروسه</th><th>تعداد کانکشن</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -34,39 +34,42 @@
 
     <section class="card">
       <div class="card-header">
-        <h2>Connectivity</h2>
+        <h2>وضعیت اینترنت</h2>
+        <span class="hint">اتصال به سرورهای مرجع</span>
       </div>
       <div id="connectivityStatus" class="status-list"></div>
     </section>
 
     <section class="card card-wide">
       <div class="card-header">
-        <h2>Traffic history</h2>
+        <h2>تاریخچه‌ی ترافیک</h2>
         <div class="range-toggle" data-target="traffic">
-          <button data-range="day" class="active">Day</button>
-          <button data-range="week">Week</button>
+          <button data-range="day" class="active">روز</button>
+          <button data-range="week">هفته</button>
         </div>
       </div>
+      <span class="hint">پرمصرف‌ترین برنامه‌ها بر اساس مجموع کانکشن‌های ثبت‌شده</span>
       <canvas id="trafficHistoryChart" height="80"></canvas>
     </section>
 
     <section class="card card-wide">
       <div class="card-header">
-        <h2>Connectivity history (latency)</h2>
+        <h2>تاریخچه‌ی کیفیت اتصال (تأخیر)</h2>
         <div class="range-toggle" data-target="connectivity">
-          <button data-range="day" class="active">Day</button>
-          <button data-range="week">Week</button>
+          <button data-range="day" class="active">روز</button>
+          <button data-range="week">هفته</button>
         </div>
       </div>
+      <span class="hint">شکاف در نمودار = قطعی واقعی اینترنت (بدون پاسخ به پینگ)</span>
       <canvas id="connectivityHistoryChart" height="80"></canvas>
     </section>
 
     <section class="card card-wide">
       <div class="card-header">
-        <h2>Recent alerts</h2>
+        <h2>هشدارهای اخیر</h2>
       </div>
       <ul id="alertsList" class="alerts-list">
-        <li class="empty">No alerts yet.</li>
+        <li class="empty">هنوز هشداری ثبت نشده.</li>
       </ul>
     </section>
   </main>

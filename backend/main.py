@@ -14,7 +14,7 @@ from backend.db.database import init_db
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
-app = FastAPI(title="NetPulse", description="Local traffic + connectivity monitoring")
+app = FastAPI(title="netTAPESH", description="Local traffic + connectivity monitoring")
 
 _broadcast_task: asyncio.Task | None = None
 
