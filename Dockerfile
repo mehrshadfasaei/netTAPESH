@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+# Unbuffered stdout so `docker compose logs` shows collector output as it
+# happens instead of buffering it until the process exits.
+ENV PYTHONUNBUFFERED=1
+
 # iputils-ping: the connectivity collector shells out to system `ping`
 # rather than using a raw-socket library, specifically so it doesn't need
 # root/NET_ADMIN inside the container.
