@@ -55,11 +55,12 @@
     liveTableBody.innerHTML = "";
     msg.processes.forEach((p) => {
       const row = document.createElement("tr");
-      row.innerHTML = `<td>${escapeHtml(p.name)}</td><td>${p.pid}</td><td>${p.connection_count}</td>`;
+      const mbText = bytesToMbText(p.bytes_sent, p.bytes_recv);
+      row.innerHTML = `<td>${escapeHtml(p.name)}</td><td>${p.pid}</td><td>${p.connection_count}</td><td>${mbText}</td>`;
       liveTableBody.appendChild(row);
     });
     if (msg.processes.length === 0) {
-      liveTableBody.innerHTML = `<tr><td colspan="3" style="color:#8b93a8">هیچ کانکشن فعالی نیست</td></tr>`;
+      liveTableBody.innerHTML = `<tr><td colspan="4" style="color:#8b93a8">هیچ کانکشن فعالی نیست</td></tr>`;
     }
 
     // rolling chart
@@ -95,8 +96,18 @@
     const res = await fetch(`/api/traffic/history?range=${range}`);
     const data = await res.json();
     const top = data.processes.slice(0, 12);
+    // MB is only real when the ETW byte sampler is running (Windows,
+    // as Administrator — see README); everywhere else these are null and
+    // we fall back to the connection-count proxy.
+    const hasByteData = top.some((p) => p.total_mb_sent != null || p.total_mb_recv != null);
     trafficHistoryChart.data.labels = top.map((p) => p.process_name);
-    trafficHistoryChart.data.datasets[0].data = top.map((p) => p.total_connections);
+    if (hasByteData) {
+      trafficHistoryChart.data.datasets[0].label = "مجموع مصرف (مگابایت)";
+      trafficHistoryChart.data.datasets[0].data = top.map((p) => (p.total_mb_sent || 0) + (p.total_mb_recv || 0));
+    } else {
+      trafficHistoryChart.data.datasets[0].label = "مجموع کانکشن‌های ثبت‌شده";
+      trafficHistoryChart.data.datasets[0].data = top.map((p) => p.total_connections);
+    }
     trafficHistoryChart.update();
   }
 
@@ -188,6 +199,14 @@
         </li>`
       )
       .join("");
+  }
+
+  function bytesToMbText(bytesSent, bytesRecv) {
+    // Real only when the ETW byte sampler is running (Windows, as
+    // Administrator); otherwise both are null (connection-count-only mode).
+    if (bytesSent == null && bytesRecv == null) return "—";
+    const mb = ((bytesSent || 0) + (bytesRecv || 0)) / (1024 * 1024);
+    return `${mb.toFixed(2)} MB`;
   }
 
   function escapeHtml(str) {

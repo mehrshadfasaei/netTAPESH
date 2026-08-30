@@ -32,19 +32,36 @@ def traffic_history(range: RangeParam = "day", session: Session = Depends(get_se
         select(
             TrafficLog.process_name,
             func.sum(TrafficLog.connection_count).label("total_connections"),
+            func.sum(TrafficLog.bytes_sent).label("total_bytes_sent"),
+            func.sum(TrafficLog.bytes_recv).label("total_bytes_recv"),
             func.count(TrafficLog.id).label("samples"),
         )
         .where(TrafficLog.timestamp >= since)
         .group_by(TrafficLog.process_name)
-        .order_by(func.sum(TrafficLog.connection_count).desc())
+        # NULLS come from the connection-count-only fallback (see
+        # traffic_collector.py); SUM() over an all-NULL group is NULL, not
+        # 0, so this still sorts sensibly whichever mode produced the data.
+        .order_by(
+            func.sum(TrafficLog.bytes_sent + TrafficLog.bytes_recv).desc().nulls_last(),
+            func.sum(TrafficLog.connection_count).desc(),
+        )
     ).all()
+
+    def to_mb(bytes_val):
+        return round(bytes_val / (1024 * 1024), 3) if bytes_val is not None else None
 
     return {
         "range": range,
         "since": since.isoformat(),
         "processes": [
-            {"process_name": name, "total_connections": total, "samples": samples}
-            for name, total, samples in rows
+            {
+                "process_name": name,
+                "total_connections": total,
+                "total_mb_sent": to_mb(bytes_sent),
+                "total_mb_recv": to_mb(bytes_recv),
+                "samples": samples,
+            }
+            for name, total, bytes_sent, bytes_recv, samples in rows
         ],
     }
 
