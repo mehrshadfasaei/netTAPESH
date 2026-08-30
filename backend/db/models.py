@@ -7,6 +7,7 @@ roadmap item. NULL means "not measured", not "zero" — keeps the schema
 forward-compatible once accurate byte counting lands.
 """
 from datetime import datetime, timezone
+from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, Float, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -33,8 +34,8 @@ class TrafficLog(Base):
     connection_count: Mapped[int] = mapped_column(Integer, default=0)
     # Byte-level counters — NULL until a privileged collector (nethogs /
     # eBPF) is wired in. See roadmap in README.
-    bytes_sent: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    bytes_recv: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    bytes_sent: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    bytes_recv: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
 
 class ConnectivityLog(Base):
@@ -43,7 +44,7 @@ class ConnectivityLog(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
     target_host: Mapped[str] = mapped_column(String, index=True)
-    latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    latency_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     packet_loss_pct: Mapped[float] = mapped_column(Float, default=0.0)
     status: Mapped[str] = mapped_column(String)  # "up" | "down"
 
