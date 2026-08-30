@@ -24,10 +24,9 @@ engine = create_engine(
 )
 
 if settings.database_url.startswith("sqlite"):
-    # WAL mode lets the API and the collector processes/threads (up to
-    # three now: traffic, connectivity, speedtest — separate containers
-    # in docker-compose, or separate threads in app.py's single-process
-    # mode) read/write concurrently without "database is locked".
+    # WAL mode lets concurrent requests (multiple people running a test
+    # at once, if this is hosted for more than just yourself) write
+    # results without "database is locked".
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragma(dbapi_connection, _):
         cursor = dbapi_connection.cursor()
@@ -53,14 +52,10 @@ _init_db_lock = threading.Lock()
 
 
 def init_db() -> None:
-    """
-    create_all() is normally safe to call repeatedly (it checks for each
-    table's existence first) — but that check-then-create isn't atomic,
-    so calling it from multiple threads at once (e.g. app.py's
-    single-process launcher starts the API and both collectors as
-    threads that each call this on startup) can race into a genuine
-    'table already exists' OperationalError. A lock serializes it.
-    """
+    """create_all() checks each table's existence before creating it,
+    but that check-then-create isn't atomic under concurrent callers —
+    a lock serializes it so a burst of concurrent requests at startup
+    can't race into a spurious 'table already exists' error."""
     with _init_db_lock:
         Base.metadata.create_all(bind=engine)
 

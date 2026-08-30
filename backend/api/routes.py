@@ -1,24 +1,33 @@
 """
-Phase 4 — REST API. WebSocket streaming (`/api/traffic/live`) is added in
-main.py during phase 5, once this REST surface is stable.
+Self-hosted speed test API. Everything here runs against this server —
+no dependency on an external speedtest.net/Ookla server network — so a
+"download" test streams bytes *from* this server and an "upload" test
+streams bytes *to* it; the client times both itself.
 """
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, Query, Request
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+from starlette.responses import StreamingResponse
 
-from backend.collectors.speedtest_collector import persist_result, run_speedtest
 from backend.config import settings
 from backend.db.database import get_session
-from backend.db.models import Alert, ConnectivityLog, SpeedtestLog, TrafficLog
+from backend.db.models import SpeedtestLog
 
 router = APIRouter(prefix="/api")
 
 RangeParam = Literal["day", "week"]
+
+# One chunk of random bytes, reused (not regenerated) across a whole
+# download response — the client is timing raw transfer throughput, not
+# our RNG's speed, and re-slicing the same buffer is effectively free.
+_CHUNK_SIZE = 256 * 1024
+_RANDOM_CHUNK = os.urandom(_CHUNK_SIZE)
 
 
 def _range_start(range_: RangeParam) -> datetime:
@@ -26,106 +35,73 @@ def _range_start(range_: RangeParam) -> datetime:
     return now - (timedelta(days=1) if range_ == "day" else timedelta(days=7))
 
 
-@router.get("/traffic/history")
-def traffic_history(range: RangeParam = "day", session: Session = Depends(get_session)):
-    since = _range_start(range)
-    rows = session.execute(
-        select(
-            TrafficLog.process_name,
-            func.sum(TrafficLog.connection_count).label("total_connections"),
-            func.sum(TrafficLog.bytes_sent).label("total_bytes_sent"),
-            func.sum(TrafficLog.bytes_recv).label("total_bytes_recv"),
-            func.count(TrafficLog.id).label("samples"),
-        )
-        .where(TrafficLog.timestamp >= since)
-        .group_by(TrafficLog.process_name)
-        # NULLS come from the connection-count-only fallback (see
-        # traffic_collector.py); SUM() over an all-NULL group is NULL, not
-        # 0, so this still sorts sensibly whichever mode produced the data.
-        .order_by(
-            func.sum(TrafficLog.bytes_sent + TrafficLog.bytes_recv).desc().nulls_last(),
-            func.sum(TrafficLog.connection_count).desc(),
-        )
-    ).all()
-
-    def to_mb(bytes_val):
-        return round(bytes_val / (1024 * 1024), 3) if bytes_val is not None else None
-
-    return {
-        "range": range,
-        "since": since.isoformat(),
-        "processes": [
-            {
-                "process_name": name,
-                "total_connections": total,
-                "total_mb_sent": to_mb(bytes_sent),
-                "total_mb_recv": to_mb(bytes_recv),
-                "samples": samples,
-            }
-            for name, total, bytes_sent, bytes_recv, samples in rows
-        ],
-    }
+@router.get("/speedtest/ping")
+def speedtest_ping():
+    """Round-trip target for the client's latency/jitter measurement —
+    deliberately does nothing but return immediately."""
+    return {"pong": True}
 
 
-@router.get("/connectivity/status")
-def connectivity_status(session: Session = Depends(get_session)):
-    latest_per_host = []
-    for host in settings.connectivity_targets:
-        row = session.execute(
-            select(ConnectivityLog)
-            .where(ConnectivityLog.target_host == host)
-            .order_by(ConnectivityLog.timestamp.desc())
-            .limit(1)
-        ).scalar_one_or_none()
-        if row is None:
-            latest_per_host.append({"target_host": host, "status": "unknown", "latency_ms": None})
-        else:
-            latest_per_host.append(
-                {
-                    "target_host": row.target_host,
-                    "status": row.status,
-                    "latency_ms": row.latency_ms,
-                    "packet_loss_pct": row.packet_loss_pct,
-                    "timestamp": row.timestamp.isoformat(),
-                }
-            )
-    return {"targets": latest_per_host}
+@router.get("/speedtest/download")
+def speedtest_download(bytes: int = Query(default=None, ge=1)):
+    """Streams `bytes` (default settings.default_download_bytes, capped
+    at settings.max_test_bytes) of random data. The client measures
+    elapsed time against Content-Length itself."""
+    total = min(bytes or settings.default_download_bytes, settings.max_test_bytes)
+
+    def generate():
+        remaining = total
+        while remaining > 0:
+            n = min(_CHUNK_SIZE, remaining)
+            yield _RANDOM_CHUNK[:n]
+            remaining -= n
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/octet-stream",
+        headers={"Content-Length": str(total), "Cache-Control": "no-store"},
+    )
 
 
-@router.get("/connectivity/history")
-def connectivity_history(range: RangeParam = "day", session: Session = Depends(get_session)):
-    since = _range_start(range)
-    rows = session.execute(
-        select(ConnectivityLog)
-        .where(ConnectivityLog.timestamp >= since)
-        .order_by(ConnectivityLog.timestamp.asc())
-    ).scalars().all()
-
-    return {
-        "range": range,
-        "since": since.isoformat(),
-        "samples": [
-            {
-                "timestamp": r.timestamp.isoformat(),
-                "target_host": r.target_host,
-                "latency_ms": r.latency_ms,
-                "packet_loss_pct": r.packet_loss_pct,
-                "status": r.status,
-            }
-            for r in rows
-        ],
-    }
+@router.post("/speedtest/upload")
+async def speedtest_upload(request: Request):
+    """Reads and discards the request body in chunks (never loads it all
+    into memory at once), returns how many bytes it actually received.
+    The client measures elapsed time against the bytes *it sent*, not
+    this response — this endpoint is just a sink."""
+    total = 0
+    cap = settings.max_test_bytes
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > cap:
+            break
+    return {"received_bytes": total}
 
 
-def _speedtest_row_to_dict(r: SpeedtestLog) -> dict:
+@router.post("/speedtest/result")
+def speedtest_result(payload: dict, request: Request, session: Session = Depends(get_session)):
+    """Client submits its own computed numbers (all the actual timing
+    happens client-side, against /ping, /download, /upload above) so
+    they show up in history."""
+    row = SpeedtestLog(
+        ping_ms=payload.get("ping_ms"),
+        jitter_ms=payload.get("jitter_ms"),
+        download_mbps=payload.get("download_mbps"),
+        upload_mbps=payload.get("upload_mbps"),
+        client_ip=request.client.host if request.client else None,
+    )
+    session.add(row)
+    session.commit()
+    return {"status": "saved", "id": row.id}
+
+
+def _row_to_dict(r: SpeedtestLog) -> dict:
     return {
         "timestamp": r.timestamp.isoformat(),
         "ping_ms": r.ping_ms,
+        "jitter_ms": r.jitter_ms,
         "download_mbps": r.download_mbps,
         "upload_mbps": r.upload_mbps,
-        "server_name": r.server_name,
-        "server_country": r.server_country,
-        "error": r.error,
     }
 
 
@@ -134,9 +110,7 @@ def speedtest_latest(session: Session = Depends(get_session)):
     row = session.execute(
         select(SpeedtestLog).order_by(SpeedtestLog.timestamp.desc()).limit(1)
     ).scalar_one_or_none()
-    if row is None:
-        return {"result": None}
-    return {"result": _speedtest_row_to_dict(row)}
+    return {"result": _row_to_dict(row) if row else None}
 
 
 @router.get("/speedtest/history")
@@ -150,62 +124,5 @@ def speedtest_history(range: RangeParam = "day", session: Session = Depends(get_
     return {
         "range": range,
         "since": since.isoformat(),
-        "results": [_speedtest_row_to_dict(r) for r in rows],
+        "results": [_row_to_dict(r) for r in rows],
     }
-
-
-@router.post("/speedtest/run")
-def speedtest_run():
-    """
-    Runs a full speed test on demand ("Test Now" button) and blocks
-    until it finishes (~10-30s is normal). FastAPI runs sync route
-    functions in a worker thread by default, so this doesn't block the
-    event loop / other requests or the live websocket while it runs.
-    """
-    result = run_speedtest()
-    persist_result(result)
-    return {
-        "ping_ms": result.ping_ms,
-        "download_mbps": result.download_mbps,
-        "upload_mbps": result.upload_mbps,
-        "server_name": result.server_name,
-        "server_country": result.server_country,
-        "error": result.error,
-    }
-
-
-@router.get("/alerts")
-def list_alerts(limit: int = 50, session: Session = Depends(get_session)):
-    rows = session.execute(
-        select(Alert).order_by(Alert.timestamp.desc()).limit(limit)
-    ).scalars().all()
-    return {
-        "alerts": [
-            {
-                "id": a.id,
-                "timestamp": a.timestamp.isoformat(),
-                "type": a.type,
-                "message": a.message,
-                "acknowledged": a.acknowledged,
-            }
-            for a in rows
-        ]
-    }
-
-
-@router.post("/settings")
-def update_settings(payload: dict):
-    """
-    MVP: echoes back the accepted keys. Threshold values live in
-    `backend/config.py` (env-var driven); wiring this endpoint to persist
-    changes at runtime (e.g. to a small settings table) is a follow-up —
-    tracked in the README roadmap rather than faked here.
-    """
-    accepted_keys = {
-        "high_usage_threshold_mb",
-        "high_usage_window_sec",
-        "connection_down_consecutive_failures",
-        "high_latency_threshold_ms",
-    }
-    applied = {k: v for k, v in payload.items() if k in accepted_keys}
-    return {"applied": applied, "note": "runtime persistence not yet implemented — see README roadmap"}

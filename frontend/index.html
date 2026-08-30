@@ -5,101 +5,56 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>netTAPESH</title>
   <link rel="stylesheet" href="/css/style.css" />
-  <!-- Vendored locally (not loaded from a CDN) so the dashboard works
-       fully offline / behind restrictive firewalls, with no external
+  <!-- Vendored locally (not loaded from a CDN) so the page works fully
+       offline / behind restrictive firewalls, with no external
        dependency at runtime. -->
   <script src="/js/vendor/chart.umd.js"></script>
   <script src="/js/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
 </head>
 <body>
   <header class="topbar">
-    <h1>netTAPESH <span class="subtitle">مانیتور شبکه و اینترنت</span></h1>
-    <span id="conn-indicator" class="badge badge-unknown">در حال اتصال…</span>
+    <h1>netTAPESH <span class="subtitle">تست سرعت اینترنت</span></h1>
   </header>
 
-  <main class="grid">
-    <section class="card card-wide">
-      <div class="card-header">
-        <h2>فعالیت زنده‌ی برنامه‌ها</h2>
-        <span class="hint">«این لحظه» یعنی ~۵ ثانیه‌ی اخیر؛ «مجموع امروز» جمع کل از ابتدای روز است</span>
-      </div>
-      <canvas id="liveChart" height="90"></canvas>
-      <table id="liveTable" class="table">
-        <thead>
-          <tr><th>برنامه</th><th>شناسه پروسه</th><th>تعداد کانکشن</th><th>این لحظه (MB)</th><th>مجموع امروز (MB)</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
+  <main class="page">
+    <section class="test-panel">
+      <button id="runBtn" class="run-circle">
+        <span id="runBtnLabel">شروع تست</span>
+      </button>
+      <div id="testPhase" class="test-phase"></div>
 
-    <section class="card">
-      <div class="card-header">
-        <h2>وضعیت اینترنت</h2>
-        <span class="hint">اتصال به سرورهای مرجع</span>
+      <div class="result-grid">
+        <div class="result-tile">
+          <span class="result-label">پینگ</span>
+          <span id="rPing" class="result-value">—</span>
+          <span class="result-unit">ms</span>
+        </div>
+        <div class="result-tile">
+          <span class="result-label">دانلود</span>
+          <span id="rDown" class="result-value">—</span>
+          <span class="result-unit">Mbps</span>
+        </div>
+        <div class="result-tile">
+          <span class="result-label">آپلود</span>
+          <span id="rUp" class="result-value">—</span>
+          <span class="result-unit">Mbps</span>
+        </div>
       </div>
-      <div id="connectivityStatus" class="status-list"></div>
-    </section>
-
-    <section class="card">
-      <div class="card-header">
-        <h2>اسپیدتست</h2>
-        <button id="speedtestRunBtn" class="run-btn">تست کن الان</button>
-      </div>
-      <div id="speedtestResult" class="speedtest-stats">
-        <div class="stat-tile"><span class="stat-label">پینگ</span><span id="stPing" class="stat-value">—</span></div>
-        <div class="stat-tile"><span class="stat-label">دانلود</span><span id="stDown" class="stat-value">—</span></div>
-        <div class="stat-tile"><span class="stat-label">آپلود</span><span id="stUp" class="stat-value">—</span></div>
-      </div>
-      <div id="speedtestMeta" class="hint"></div>
+      <div id="resultMeta" class="hint"></div>
     </section>
 
     <section class="card card-wide">
       <div class="card-header">
-        <h2>تاریخچه‌ی اسپیدتست</h2>
-        <div class="range-toggle" data-target="speedtest">
+        <h2>تاریخچه</h2>
+        <div class="range-toggle" data-target="history">
           <button data-range="day" class="active">روز</button>
           <button data-range="week">هفته</button>
         </div>
       </div>
-      <span class="hint">سرعت دانلود/آپلود اندازه‌گیری‌شده در طول زمان (مگابیت بر ثانیه)</span>
-      <canvas id="speedtestHistoryChart" height="80"></canvas>
-    </section>
-
-    <section class="card card-wide">
-      <div class="card-header">
-        <h2>تاریخچه‌ی ترافیک</h2>
-        <div class="range-toggle" data-target="traffic">
-          <button data-range="day" class="active">روز</button>
-          <button data-range="week">هفته</button>
-        </div>
-      </div>
-      <span class="hint">پرمصرف‌ترین برنامه‌ها بر اساس مجموع کانکشن‌های ثبت‌شده</span>
-      <canvas id="trafficHistoryChart" height="80"></canvas>
-    </section>
-
-    <section class="card card-wide">
-      <div class="card-header">
-        <h2>تاریخچه‌ی کیفیت اتصال (تأخیر)</h2>
-        <div class="range-toggle" data-target="connectivity">
-          <button data-range="day" class="active">روز</button>
-          <button data-range="week">هفته</button>
-        </div>
-      </div>
-      <span class="hint">شکاف در نمودار = قطعی واقعی اینترنت (بدون پاسخ به پینگ)</span>
-      <canvas id="connectivityHistoryChart" height="80"></canvas>
-    </section>
-
-    <section class="card card-wide">
-      <div class="card-header">
-        <h2>هشدارهای اخیر</h2>
-      </div>
-      <ul id="alertsList" class="alerts-list">
-        <li class="empty">هنوز هشداری ثبت نشده.</li>
-      </ul>
+      <canvas id="historyChart" height="80"></canvas>
     </section>
   </main>
 
-  <script src="/js/websocket-client.js"></script>
-  <script src="/js/dashboard.js"></script>
+  <script src="/js/speedtest.js"></script>
 </body>
 </html>

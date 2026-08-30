@@ -1,19 +1,5 @@
-# Runs with zero configuration (all thresholds have sane defaults in
-# backend/config.py). To override anything (poll intervals, alert
-# thresholds, connectivity targets), copy .env.example to .env and
-# uncomment an `env_file: [.env]` line under each service below.
-#
-# IMPORTANT — traffic-collector is intentionally NOT a service here.
-# It has to see the *host's* processes (which app is using the network),
-# but a container only ever sees its own process namespace — on Linux
-# that's fixable with --pid=host, but on Windows/macOS Docker Desktop
-# runs everything inside a Linux VM, which has no visibility into native
-# Windows/macOS processes at all, no flag gets around that. So run
-# traffic-collector natively on the host (see README) while the API and
-# connectivity-collector — which don't need host process visibility —
-# run in Docker as usual. They share one SQLite file via the bind mount
-# below (./data), not a named volume, specifically so the host-side
-# traffic-collector can write to the same file the API reads.
+# Runs with zero configuration. To override anything, copy .env.example
+# to .env, edit it, and uncomment env_file below.
 services:
   api:
     build: .
@@ -21,18 +7,6 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-    restart: unless-stopped
-
-  connectivity-collector:
-    build: .
-    command: ["python", "-m", "backend.collectors.connectivity_collector"]
-    volumes:
-      - ./data:/app/data
-    restart: unless-stopped
-
-  speedtest-collector:
-    build: .
-    command: ["python", "-m", "backend.collectors.speedtest_collector"]
-    volumes:
-      - ./data:/app/data
+    # env_file:
+    #   - .env
     restart: unless-stopped
