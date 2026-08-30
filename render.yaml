@@ -1,0 +1,12 @@
+# Render.com Blueprint — lets Render auto-configure the service from
+# this repo instead of clicking through the dashboard manually.
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: nettapesh
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NETPULSE_DATABASE_URL
+        value: sqlite:///./data/netpulse.db
