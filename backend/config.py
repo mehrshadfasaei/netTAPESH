@@ -11,13 +11,19 @@ class Settings(BaseSettings):
     # Ping test: how many round trips to average for latency/jitter.
     ping_samples: int = 10
 
-    # Download/upload test payload size. Big enough to saturate a
-    # decent connection past TCP slow-start, small enough not to be
-    # painful on a slow one. The client can override per-request via
-    # ?bytes= on /api/speedtest/download, capped at this value.
-    max_test_bytes: int = 50_000_000  # 50 MB
-    default_download_bytes: int = 25_000_000  # 25 MB
-    default_upload_bytes: int = 15_000_000  # 15 MB
+    # The download test is duration-based, not size-based (see
+    # frontend/js/speedtest.js): the client opens several parallel
+    # streams and aborts them once its test window elapses, so each
+    # stream just needs to request "more than any realistic connection
+    # could consume in the test window" — this cap exists only so a
+    # client can't request literally unbounded bytes from the server.
+    max_download_bytes: int = 500_000_000  # 500 MB per stream
+    default_download_bytes: int = 300_000_000  # 300 MB per stream
+
+    # The upload test loops POSTing this chunk size per connection until
+    # its test window elapses (rather than one giant body) — keeps
+    # browser memory bounded and gives reasonably fine-grained timing.
+    upload_chunk_bytes: int = 4_000_000  # 4 MB
 
 
 settings = Settings()
