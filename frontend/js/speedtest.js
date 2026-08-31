@@ -30,6 +30,7 @@
   const runBtnLabel = document.getElementById("runBtnLabel");
   const testPhaseEl = document.getElementById("testPhase");
   const rPing = document.getElementById("rPing");
+  const rJitter = document.getElementById("rJitter");
   const rDown = document.getElementById("rDown");
   const rUp = document.getElementById("rUp");
   const rDownUnit = document.getElementById("rDownUnit");
@@ -38,6 +39,33 @@
   const resultMetaEl = document.getElementById("resultMeta");
   const gaugeRing = document.getElementById("gaugeRing");
   const gaugeLiveValue = document.getElementById("gaugeLiveValue");
+  const nowStampEl = document.getElementById("nowStamp");
+  const ispNameEl = document.getElementById("ispName");
+  const locationNameEl = document.getElementById("locationName");
+
+  // ---- Clock (top-right timestamp, like Ookla's) ----
+  function updateNowStamp() {
+    nowStampEl.textContent = new Date().toLocaleString("fa-IR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  }
+  updateNowStamp();
+  setInterval(updateNowStamp, 30000);
+
+  // ---- ISP / location (fetched once — by IP, server-side, see
+  // backend/api/routes.py speedtest_client_info) ----
+  async function loadClientInfo() {
+    try {
+      const res = await fetch("/api/speedtest/client-info");
+      const data = await res.json();
+      ispNameEl.textContent = data.isp || "—";
+      locationNameEl.textContent = data.location || "—";
+    } catch (e) {
+      // best-effort — leave the "—" placeholders
+    }
+  }
+  loadClientInfo();
 
   // ---- Gauge (the colored ring around the run button) ----
   // Auto-scales like a real speedometer: the "full scale" jumps to the
@@ -256,6 +284,7 @@
   async function runTest() {
     runBtn.disabled = true;
     rPing.textContent = "—";
+    rJitter.textContent = "—";
     setDownloadDisplay(null);
     setUploadDisplay(null);
     resultMetaEl.textContent = "";
@@ -265,6 +294,7 @@
       testPhaseEl.textContent = "در حال تست پینگ…";
       const { ping_ms, jitter_ms } = await measurePing();
       rPing.textContent = ping_ms.toFixed(0);
+      rJitter.textContent = jitter_ms.toFixed(1);
 
       testPhaseEl.textContent = "در حال تست دانلود…";
       const download_mbps = await measureDownload();
@@ -345,6 +375,7 @@
     if (!data.result) return;
     const r = data.result;
     if (r.ping_ms != null) rPing.textContent = r.ping_ms.toFixed(0);
+    if (r.jitter_ms != null) rJitter.textContent = r.jitter_ms.toFixed(1);
     if (r.download_mbps != null) setDownloadDisplay(r.download_mbps);
     if (r.upload_mbps != null) setUploadDisplay(r.upload_mbps);
     resultMetaEl.textContent = `آخرین تست: ${new Date(r.timestamp).toLocaleString("fa-IR")}`;
