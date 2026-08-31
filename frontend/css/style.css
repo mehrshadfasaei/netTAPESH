@@ -12,6 +12,16 @@
 
 * { box-sizing: border-box; }
 
+/* Lets --pct (used by .gauge-ring below) transition smoothly as a
+   number instead of jumping instantly — progressive enhancement only,
+   browsers without @property support just skip the animation and the
+   ring still updates correctly on every value. */
+@property --pct {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -56,19 +66,77 @@ body {
   padding: 2rem 1rem;
 }
 
+.gauge-wrap {
+  position: relative;
+  width: 210px;
+  height: 210px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The color ring itself: a conic-gradient (green -> amber -> red) whose
+   sweep is clipped to --pct (0 to 1, set from JS as live speed / current
+   scale max) via a hard transparent cutoff, then masked into a ring
+   shape. More speed = more of the gradient revealed = more red visible
+   — same visual language as Speedtest.net's gauge. */
+.gauge-ring {
+  --pct: 0;
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  /* Two stacked layers, not one gradient with a --pct-dependent color
+     stop: a single gradient whose color stops move with --pct compresses
+     the WHOLE green->red spectrum into however little is filled, so
+     even a slow result flashes red at its tip — wrong; slow should stay
+     green, red should only appear near the top of the scale.
+     Layer 1 (painted on top): transparent up to --pct, solid --bg from
+     --pct to 100% — a "cover" that hides everything past the current
+     value. Layer 2 (underneath): the real green->amber->red spectrum,
+     fixed, covering the whole ring. Revealing more of layer 2 as --pct
+     grows is what makes the correct, fixed-position color show through
+     progressively, instead of the color scale itself stretching. */
+  background:
+    conic-gradient(
+      from -90deg,
+      transparent 0%,
+      transparent calc(var(--pct) * 100%),
+      var(--bg) calc(var(--pct) * 100% + 0.3%),
+      var(--bg) 100%
+    ),
+    conic-gradient(from -90deg, var(--green) 0%, var(--amber) 50%, var(--red) 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 16px), #000 calc(100% - 16px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 16px), #000 calc(100% - 16px));
+  transition: --pct 0.2s linear;
+}
+
 .run-circle {
-  width: 160px;
-  height: 160px;
+  position: relative;
+  width: 168px;
+  height: 168px;
   border-radius: 50%;
   border: 3px solid var(--accent);
-  background: rgba(79, 140, 255, 0.08);
+  background: var(--bg);
   color: var(--text);
   font-size: 1.05rem;
   font-weight: 600;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
 }
-.run-circle:hover { background: rgba(79, 140, 255, 0.16); }
-.run-circle:disabled { opacity: 0.5; cursor: default; }
+.run-circle:hover { background: #131a29; }
+.run-circle:disabled { cursor: default; }
+
+.gauge-live-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  min-height: 2.1rem;
+}
+.gauge-live-value:empty { display: none; }
+.gauge-live-value:empty + #runBtnLabel { margin-top: 0; }
 
 .test-phase {
   min-height: 1.2rem;

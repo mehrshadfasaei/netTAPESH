@@ -27,6 +27,7 @@
   const UPDATE_INTERVAL_MS = 200;
 
   const runBtn = document.getElementById("runBtn");
+  const runBtnLabel = document.getElementById("runBtnLabel");
   const testPhaseEl = document.getElementById("testPhase");
   const rPing = document.getElementById("rPing");
   const rDown = document.getElementById("rDown");
@@ -35,6 +36,35 @@
   const rUpUnit = document.getElementById("rUpUnit");
   const unitToggle = document.getElementById("unitToggle");
   const resultMetaEl = document.getElementById("resultMeta");
+  const gaugeRing = document.getElementById("gaugeRing");
+  const gaugeLiveValue = document.getElementById("gaugeLiveValue");
+
+  // ---- Gauge (the colored ring around the run button) ----
+  // Auto-scales like a real speedometer: the "full scale" jumps to the
+  // next tier once the live value gets close to the current one, rather
+  // than a fixed max that either wastes most of the ring on slow
+  // connections or pins at 100% for fast ones.
+  const GAUGE_TIERS = [10, 25, 50, 100, 250, 500, 1000, 2000, 5000];
+  let gaugeTierMax = GAUGE_TIERS[0];
+
+  function resetGauge() {
+    gaugeTierMax = GAUGE_TIERS[0];
+    gaugeRing.style.setProperty("--pct", "0");
+    gaugeLiveValue.textContent = "";
+    runBtnLabel.style.display = "";
+  }
+
+  function updateGauge(mbpsValue) {
+    while (mbpsValue > gaugeTierMax * 0.9 && gaugeTierMax < GAUGE_TIERS[GAUGE_TIERS.length - 1]) {
+      const next = GAUGE_TIERS[GAUGE_TIERS.indexOf(gaugeTierMax) + 1];
+      if (!next) break;
+      gaugeTierMax = next;
+    }
+    const pct = Math.max(0, Math.min(mbpsValue / gaugeTierMax, 1));
+    gaugeRing.style.setProperty("--pct", String(pct));
+    gaugeLiveValue.textContent = mbpsValue.toFixed(1);
+    runBtnLabel.style.display = "none";
+  }
 
   function mbps(bytes, seconds) {
     if (seconds <= 0) return 0;
@@ -52,14 +82,16 @@
     return currentUnit === "MBps" ? (mbpsValue / 8).toFixed(2) : mbpsValue.toFixed(1);
   }
 
-  function setDownloadDisplay(mbpsValue) {
+  function setDownloadDisplay(mbpsValue, live) {
     lastDownloadMbps = mbpsValue;
     rDown.textContent = formatSpeed(mbpsValue);
+    if (live && mbpsValue != null) updateGauge(mbpsValue);
   }
 
-  function setUploadDisplay(mbpsValue) {
+  function setUploadDisplay(mbpsValue, live) {
     lastUploadMbps = mbpsValue;
     rUp.textContent = formatSpeed(mbpsValue);
+    if (live && mbpsValue != null) updateGauge(mbpsValue);
   }
 
   unitToggle.addEventListener("click", (e) => {
@@ -151,7 +183,7 @@
   }
 
   function measureDownload() {
-    return runParallelTest(downloadLane, setDownloadDisplay);
+    return runParallelTest(downloadLane, (v) => setDownloadDisplay(v, true));
   }
 
   // ---- Upload: N parallel lanes, each looping fixed-size chunk POSTs
@@ -176,7 +208,7 @@
   }
 
   function measureUpload() {
-    return runParallelTest(uploadLane, setUploadDisplay);
+    return runParallelTest(uploadLane, (v) => setUploadDisplay(v, true));
   }
 
   async function saveResult(result) {
@@ -197,6 +229,7 @@
     setDownloadDisplay(null);
     setUploadDisplay(null);
     resultMetaEl.textContent = "";
+    resetGauge();
 
     try {
       testPhaseEl.textContent = "در حال تست پینگ…";
@@ -207,11 +240,14 @@
       const download_mbps = await measureDownload();
       setDownloadDisplay(download_mbps);
 
+      resetGauge(); // fresh scale for upload — often a very different range than download
       testPhaseEl.textContent = "در حال تست آپلود…";
       const upload_mbps = await measureUpload();
       setUploadDisplay(upload_mbps);
 
       testPhaseEl.textContent = "";
+      runBtnLabel.style.display = "";
+      gaugeLiveValue.textContent = "";
       resultMetaEl.textContent = `تست در ${new Date().toLocaleString("fa-IR")} انجام شد`;
 
       const result = { ping_ms, jitter_ms, download_mbps, upload_mbps };
@@ -220,6 +256,7 @@
     } catch (e) {
       testPhaseEl.textContent = "";
       resultMetaEl.textContent = "خطا در اجرای تست — دوباره امتحان کن.";
+      resetGauge();
     } finally {
       runBtn.disabled = false;
     }
@@ -283,6 +320,7 @@
     resultMetaEl.textContent = `آخرین تست: ${new Date(r.timestamp).toLocaleString("fa-IR")}`;
   }
 
+  resetGauge();
   loadLatest();
   loadHistory("day");
 })();
