@@ -18,9 +18,13 @@
 
   <main class="page">
     <section class="test-panel">
-      <button id="runBtn" class="run-circle">
-        <span id="runBtnLabel">شروع تست</span>
-      </button>
+      <div class="gauge-wrap">
+        <div id="gaugeRing" class="gauge-ring"></div>
+        <button id="runBtn" class="run-circle">
+          <span id="gaugeLiveValue" class="gauge-live-value"></span>
+          <span id="runBtnLabel">شروع تست</span>
+        </button>
+      </div>
       <div id="testPhase" class="test-phase"></div>
 
       <div class="unit-toggle" id="unitToggle">
