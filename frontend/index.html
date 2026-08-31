@@ -13,41 +13,69 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>netTAPESH <span class="subtitle">تست سرعت اینترنت</span></h1>
+    <h1>netTAPESH</h1>
+    <span id="nowStamp" class="now-stamp"></span>
   </header>
 
   <main class="page">
     <section class="test-panel">
-      <div class="gauge-wrap">
-        <div id="gaugeRing" class="gauge-ring"></div>
-        <button id="runBtn" class="run-circle">
-          <span id="gaugeLiveValue" class="gauge-live-value"></span>
-          <span id="runBtnLabel">شروع تست</span>
-        </button>
+      <div class="stat-row">
+        <div class="stat-block">
+          <div class="stat-block-head">
+            <svg class="icon icon-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v14M6 12l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>دانلود <span id="rDownUnit">Mbps</span></span>
+          </div>
+          <span id="rDown" class="stat-block-value">—</span>
+        </div>
+        <div class="stat-block">
+          <div class="stat-block-head">
+            <svg class="icon icon-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V6M6 12l6-6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>آپلود <span id="rUpUnit">Mbps</span></span>
+          </div>
+          <span id="rUp" class="stat-block-value">—</span>
+        </div>
       </div>
+
+      <div class="mini-stat-row">
+        <div class="mini-stat">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="mini-stat-label">پینگ</span>
+          <span id="rPing" class="mini-stat-value">—</span>
+          <span class="mini-stat-unit">ms</span>
+        </div>
+        <div class="mini-stat">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="mini-stat-label">جیتر</span>
+          <span id="rJitter" class="mini-stat-value">—</span>
+          <span class="mini-stat-unit">ms</span>
+        </div>
+      </div>
+
+      <div class="gauge-row">
+        <div class="side-info" id="ispInfo">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1" stroke-linecap="round"/></svg>
+          <span id="ispName" class="side-info-text">—</span>
+        </div>
+
+        <div class="gauge-wrap">
+          <div id="gaugeRing" class="gauge-ring"></div>
+          <button id="runBtn" class="run-circle">
+            <span id="gaugeLiveValue" class="gauge-live-value"></span>
+            <span id="runBtnLabel">شروع تست</span>
+          </button>
+        </div>
+
+        <div class="side-info" id="locationInfo">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          <span id="locationName" class="side-info-text">—</span>
+        </div>
+      </div>
+
       <div id="testPhase" class="test-phase"></div>
 
       <div class="unit-toggle" id="unitToggle">
         <button data-unit="mbps" class="active">Mbps</button>
         <button data-unit="MBps">MB/s</button>
-      </div>
-
-      <div class="result-grid">
-        <div class="result-tile">
-          <span class="result-label">پینگ</span>
-          <span id="rPing" class="result-value">—</span>
-          <span class="result-unit">ms</span>
-        </div>
-        <div class="result-tile">
-          <span class="result-label">دانلود</span>
-          <span id="rDown" class="result-value">—</span>
-          <span id="rDownUnit" class="result-unit">Mbps</span>
-        </div>
-        <div class="result-tile">
-          <span class="result-label">آپلود</span>
-          <span id="rUp" class="result-value">—</span>
-          <span id="rUpUnit" class="result-unit">Mbps</span>
-        </div>
       </div>
       <div id="resultMeta" class="hint"></div>
     </section>

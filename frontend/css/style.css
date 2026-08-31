@@ -34,19 +34,22 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+.topbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
 .topbar h1 {
   margin: 0;
   font-size: 1.25rem;
   letter-spacing: 0.02em;
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
 }
 
-.subtitle {
+.now-stamp {
   font-size: 0.8rem;
-  font-weight: 400;
   color: var(--text-dim);
+  direction: ltr;
 }
 
 .page {
@@ -62,17 +65,100 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 2rem 1rem;
+  gap: 1.25rem;
+  padding: 1.5rem 1rem;
+}
+
+.icon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+}
+
+/* ---- Download/Upload big stat row ---- */
+.stat-row {
+  display: flex;
+  gap: 2.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.stat-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.stat-block-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.icon-down { color: var(--green); }
+.icon-up { color: var(--accent); }
+
+.stat-block-value {
+  font-size: 2.8rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+/* ---- Ping/jitter mini row ---- */
+.mini-stat-row {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.mini-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+.mini-stat .icon { align-self: center; }
+.mini-stat-value { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+.mini-stat-unit { font-size: 0.75rem; }
+
+/* ---- Gauge + ISP/location row ---- */
+.gauge-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.side-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 110px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.side-info .icon { width: 1.6em; height: 1.6em; }
+.side-info-text {
+  font-size: 0.8rem;
+  color: var(--text);
+  overflow-wrap: break-word;
 }
 
 .gauge-wrap {
   position: relative;
-  width: 210px;
-  height: 210px;
+  width: 190px;
+  height: 190px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 /* The color ring itself: a conic-gradient (green -> amber -> red) whose
@@ -112,8 +198,8 @@ body {
 
 .run-circle {
   position: relative;
-  width: 168px;
-  height: 168px;
+  width: 152px;
+  height: 152px;
   border-radius: 50%;
   border: 3px solid var(--accent);
   background: var(--bg);
@@ -143,28 +229,6 @@ body {
   color: var(--text-dim);
   font-size: 0.9rem;
 }
-
-.result-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
-  width: 100%;
-}
-
-.result-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.15rem;
-  padding: 1rem 0.5rem;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.result-label { font-size: 0.8rem; color: var(--text-dim); }
-.result-value { font-size: 2rem; font-weight: 700; }
-.result-unit { font-size: 0.75rem; color: var(--text-dim); }
 
 .hint { font-size: 0.8rem; color: var(--text-dim); text-align: center; }
 
@@ -211,5 +275,8 @@ body {
 .unit-toggle button.active { background: var(--accent); color: white; border-color: var(--accent); }
 
 @media (max-width: 500px) {
-  .result-grid { grid-template-columns: 1fr; }
+  .gauge-row { flex-direction: column; gap: 0.75rem; }
+  .side-info { flex-direction: row; width: auto; }
+  .stat-row { gap: 1.5rem; }
+  .stat-block-value { font-size: 2.2rem; }
 }

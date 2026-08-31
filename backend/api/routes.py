@@ -10,6 +10,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
+import httpx
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -40,6 +41,52 @@ def speedtest_ping():
     """Round-trip target for the client's latency/jitter measurement —
     deliberately does nothing but return immediately."""
     return {"pong": True}
+
+
+def _extract_client_ip(request: Request) -> str | None:
+    # Render (and most PaaS reverse proxies) put the real visitor IP in
+    # X-Forwarded-For, not request.client.host — that's the proxy's own
+    # address. X-Forwarded-For can be a comma-separated chain if there
+    # were multiple hops; the first entry is the original client.
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
+@router.get("/speedtest/client-info")
+async def speedtest_client_info(request: Request):
+    """ISP name + city/country for the display around the GO button —
+    looked up by IP via ip-api.com's free tier (no key required, ~45
+    req/min limit). Deliberately looks up the *client's* IP specifically
+    (not calling ip-api.com from our own outbound connection, which
+    would just describe the server's own hosting provider/location
+    instead of the visitor's)."""
+    client_ip = _extract_client_ip(request)
+    if not client_ip:
+        return {"isp": None, "location": None, "ip": None}
+
+    # Private/loopback addresses (local dev, or a proxy that didn't set
+    # X-Forwarded-For) aren't geolocatable — ip-api.com would just
+    # return a "private range" error for these, so skip the call.
+    if client_ip in ("127.0.0.1", "::1") or client_ip.startswith(("10.", "192.168.", "172.16.")):
+        return {"isp": None, "location": None, "ip": client_ip}
+
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as http_client:
+            resp = await http_client.get(
+                f"http://ip-api.com/json/{client_ip}",
+                params={"fields": "status,isp,city,country,query"},
+            )
+        data = resp.json()
+        if data.get("status") != "success":
+            return {"isp": None, "location": None, "ip": client_ip}
+        location = "، ".join(filter(None, [data.get("city"), data.get("country")]))
+        return {"isp": data.get("isp"), "location": location or None, "ip": data.get("query")}
+    except Exception:
+        # Best-effort — a failed lookup shouldn't break the page, the
+        # frontend just shows nothing in the ISP/location slots.
+        return {"isp": None, "location": None, "ip": client_ip}
 
 
 @router.get("/speedtest/download")
