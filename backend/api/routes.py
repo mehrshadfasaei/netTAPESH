@@ -97,9 +97,22 @@ def speedtest_result(payload: dict, request: Request, session: Session = Depends
     return {"status": "saved", "id": row.id}
 
 
+def _row_serialize_timestamp(ts: datetime) -> str:
+    """SQLite drops tzinfo on round-trip (models.py sets timestamp via
+    utcnow(), but what comes back from a query has tzinfo=None even
+    though the value IS UTC) — isoformat() on a naive datetime omits any
+    'Z'/offset, and `new Date(...)` in JS treats a timezone-less
+    date-time string as LOCAL time, silently shifting every point on the
+    history chart by the viewer's UTC offset. Stamp UTC back on before
+    formatting so the string is unambiguous."""
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts.isoformat()
+
+
 def _row_to_dict(r: SpeedtestLog) -> dict:
     return {
-        "timestamp": r.timestamp.isoformat(),
+        "timestamp": _row_serialize_timestamp(r.timestamp),
         "ping_ms": r.ping_ms,
         "jitter_ms": r.jitter_ms,
         "download_mbps": r.download_mbps,
