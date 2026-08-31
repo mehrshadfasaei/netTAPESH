@@ -187,23 +187,53 @@
   }
 
   // ---- Upload: N parallel lanes, each looping fixed-size chunk POSTs
-  // (not one giant body — keeps browser memory bounded) until aborted ----
+  // (not one giant body — keeps browser memory bounded) until aborted.
+  //
+  // Uses XMLHttpRequest, not fetch — deliberately. An earlier version
+  // used fetch() and counted a chunk as "sent" only once the whole POST
+  // resolved. That's fine on a fast link, but on a slow one (say a few
+  // Mbps upload — common, not an edge case) a single 4 MB chunk can take
+  // longer than the entire test window to finish, so onBytes() never
+  // fires even once and the result comes back as a flat 0 Mbps — this
+  // is the real bug a report of "upload shows 0" turned out to be.
+  // XHR's upload.onprogress fires incrementally as bytes actually go
+  // out over the wire, the same way the download side already tracks
+  // partial progress via its stream reader, so throughput is measured
+  // correctly regardless of whether any single chunk ever completes
+  // before the window ends. ----
   const UPLOAD_CHUNK_BYTES = 4_000_000;
   const _uploadBuffer = new Uint8Array(UPLOAD_CHUNK_BYTES);
+
+  function xhrUploadOnce(signal, onBytes) {
+    return new Promise((resolve, reject) => {
+      if (signal.aborted) {
+        reject(new DOMException("aborted", "AbortError"));
+        return;
+      }
+      const xhr = new XMLHttpRequest();
+      let lastLoaded = 0;
+      xhr.open("POST", "/api/speedtest/upload");
+      xhr.upload.onprogress = (e) => {
+        onBytes(e.loaded - lastLoaded);
+        lastLoaded = e.loaded;
+      };
+      xhr.onload = () => resolve();
+      xhr.onerror = () => reject(new Error("upload network error"));
+      xhr.onabort = () => reject(new DOMException("aborted", "AbortError"));
+      const onSignalAbort = () => xhr.abort();
+      signal.addEventListener("abort", onSignalAbort, { once: true });
+      xhr.send(_uploadBuffer);
+    });
+  }
 
   async function uploadLane(signal, onBytes) {
     try {
       while (!signal.aborted) {
-        await fetch("/api/speedtest/upload", {
-          method: "POST",
-          body: _uploadBuffer,
-          signal,
-          cache: "no-store",
-        });
-        onBytes(UPLOAD_CHUNK_BYTES);
+        await xhrUploadOnce(signal, onBytes);
       }
     } catch (e) {
-      // aborted mid-chunk — that partial chunk is simply not counted
+      // aborted mid-chunk — bytes already sent were counted incrementally
+      // via onprogress above, so nothing is lost by the abort itself
     }
   }
 
