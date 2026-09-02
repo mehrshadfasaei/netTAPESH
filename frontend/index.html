@@ -10,7 +10,6 @@
        dependency at runtime. -->
   <script src="/js/vendor/chart.umd.js"></script>
   <script src="/js/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
-  <script src="/js/vendor/chartjs-chart-financial.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -89,15 +88,7 @@
           <button data-range="week">هفته</button>
         </div>
       </div>
-      <span class="hint">هر کندل یه بازه‌ی زمانیه: بدنه = شروع/پایان سرعت، سایه‌ها = کمینه/بیشینه‌ی همون بازه</span>
-      <div class="candle-block">
-        <span class="candle-label">دانلود</span>
-        <canvas id="historyChartDownload" height="70"></canvas>
-      </div>
-      <div class="candle-block">
-        <span class="candle-label">آپلود</span>
-        <canvas id="historyChartUpload" height="70"></canvas>
-      </div>
+      <canvas id="historyChart" height="80"></canvas>
     </section>
   </main>
 
