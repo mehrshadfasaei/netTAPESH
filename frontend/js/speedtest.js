@@ -68,28 +68,32 @@
   loadClientInfo();
 
   // ---- Gauge (the colored ring around the run button) ----
-  // Auto-scales like a real speedometer: the "full scale" jumps to the
-  // next tier once the live value gets close to the current one, rather
-  // than a fixed max that either wastes most of the ring on slow
-  // connections or pins at 100% for fast ones.
-  const GAUGE_TIERS = [10, 25, 50, 100, 250, 500, 1000, 2000, 5000];
-  let gaugeTierMax = GAUGE_TIERS[0];
+  // A fixed-max LOGARITHMIC scale, not a tiered linear one: an earlier
+  // version re-tiered its "full scale" (10 -> 25 -> 50 -> ... Mbps) as
+  // the live value approached the current tier's max, which made the
+  // ring visibly snap backward every time it re-tiered (e.g. 85% -> 37%
+  // the instant the scale jumped from the 10 to the 25 Mbps tier) —
+  // jarring, and exactly what read as "buggy". A single fixed max with a
+  // log mapping is monotonic: the ring only ever fills forward as speed
+  // increases, never jumps back, while still giving slow connections
+  // (a few Mbps) a readable amount of the ring instead of being crushed
+  // near zero the way a fixed LINEAR scale up to 2000 Mbps would.
+  const GAUGE_MAX_MBPS = 2000;
+  const GAUGE_LOG_MAX = Math.log10(GAUGE_MAX_MBPS + 1);
+
+  function speedToPct(mbpsValue) {
+    if (mbpsValue <= 0) return 0;
+    return Math.max(0, Math.min(Math.log10(mbpsValue + 1) / GAUGE_LOG_MAX, 1));
+  }
 
   function resetGauge() {
-    gaugeTierMax = GAUGE_TIERS[0];
     gaugeRing.style.setProperty("--pct", "0");
     gaugeLiveValue.textContent = "";
     runBtnLabel.style.display = "";
   }
 
   function updateGauge(mbpsValue) {
-    while (mbpsValue > gaugeTierMax * 0.9 && gaugeTierMax < GAUGE_TIERS[GAUGE_TIERS.length - 1]) {
-      const next = GAUGE_TIERS[GAUGE_TIERS.indexOf(gaugeTierMax) + 1];
-      if (!next) break;
-      gaugeTierMax = next;
-    }
-    const pct = Math.max(0, Math.min(mbpsValue / gaugeTierMax, 1));
-    gaugeRing.style.setProperty("--pct", String(pct));
+    gaugeRing.style.setProperty("--pct", String(speedToPct(mbpsValue)));
     gaugeLiveValue.textContent = mbpsValue.toFixed(1);
     runBtnLabel.style.display = "none";
   }
@@ -324,43 +328,35 @@
 
   runBtn.addEventListener("click", runTest);
 
-  // ---- History charts (candlestick, like a trading chart) ----
-  // Individual test results are sparse points, not a continuous price
-  // feed, so "candles" here are time buckets (hourly for the day view,
-  // daily for the week view): open = first result in the bucket,
-  // close = last, high/low = the fastest/slowest result seen in it. A
-  // single, mostly-flat bucket just renders as a candle with a tiny or
-  // no body/wick, same as a quiet trading period would.
-  function bucketToOHLC(results, field, bucketMs) {
-    const buckets = new Map();
-    results.forEach((r) => {
-      const val = r[field];
-      if (val == null) return;
-      const t = new Date(r.timestamp).getTime();
-      const bucketStart = Math.floor(t / bucketMs) * bucketMs;
-      if (!buckets.has(bucketStart)) buckets.set(bucketStart, []);
-      buckets.get(bucketStart).push({ t, val });
-    });
-    const candles = [];
-    for (const [bucketStart, points] of buckets) {
-      points.sort((a, b) => a.t - b.t);
-      const values = points.map((p) => p.val);
-      candles.push({
-        x: bucketStart,
-        o: points[0].val,
-        c: points[points.length - 1].val,
-        h: Math.max(...values),
-        l: Math.min(...values),
-      });
-    }
-    candles.sort((a, b) => a.x - b.x);
-    return candles;
-  }
-
-  function candleChartOptions(unitColor) {
-    return {
+  // ---- History chart (line/area) ----
+  const historyChart = new Chart(document.getElementById("historyChart").getContext("2d"), {
+    type: "line",
+    data: {
+      datasets: [
+        {
+          label: "دانلود (Mbps)",
+          data: [],
+          borderColor: "#4f8cff",
+          backgroundColor: "rgba(79, 140, 255, 0.12)",
+          pointRadius: 2,
+          tension: 0.3,
+          fill: true,
+        },
+        {
+          label: "آپلود (Mbps)",
+          data: [],
+          borderColor: "#33c07c",
+          backgroundColor: "rgba(51, 192, 124, 0.12)",
+          pointRadius: 2,
+          tension: 0.3,
+          fill: true,
+        },
+      ],
+    },
+    options: {
       responsive: true,
       animation: false,
+      parsing: false,
       scales: {
         x: { type: "time", ticks: { color: "#8b93a8" }, grid: { color: "#262f45" } },
         y: {
@@ -370,53 +366,18 @@
           title: { display: true, text: "Mbps", color: "#8b93a8" },
         },
       },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const d = ctx.raw;
-              return [`باز: ${d.o.toFixed(1)}`, `بالا: ${d.h.toFixed(1)}`, `پایین: ${d.l.toFixed(1)}`, `بسته: ${d.c.toFixed(1)}`];
-            },
-          },
-        },
-      },
-      elements: {
-        candlestick: {
-          // The plugin reads backgroundColors/borderColors (plural, an
-          // {up,down,unchanged} map) when painting — a singular `color`
-          // option (what seemed like the obvious key to try) is simply
-          // never read, so bars fall back to Chart.js's generic default
-          // blue/undefined fill and can end up looking blank against a
-          // dark page background. Found by inspecting a rendered
-          // candle's resolved element options, not by guessing.
-          backgroundColors: { up: "rgba(51, 192, 124, 0.55)", down: "rgba(229, 83, 75, 0.55)", unchanged: unitColor },
-          borderColors: { up: "#33c07c", down: "#e5534b", unchanged: unitColor },
-        },
-      },
-    };
-  }
-
-  const downloadCandleChart = new Chart(document.getElementById("historyChartDownload").getContext("2d"), {
-    type: "candlestick",
-    data: { datasets: [{ label: "دانلود (Mbps)", data: [] }] },
-    options: candleChartOptions("#4f8cff"),
-  });
-
-  const uploadCandleChart = new Chart(document.getElementById("historyChartUpload").getContext("2d"), {
-    type: "candlestick",
-    data: { datasets: [{ label: "آپلود (Mbps)", data: [] }] },
-    options: candleChartOptions("#33c07c"),
+      plugins: { legend: { labels: { color: "#e6e9f2" } } },
+    },
   });
 
   async function loadHistory(range) {
     const res = await fetch(`/api/speedtest/history?range=${range}`);
     const data = await res.json();
-    const bucketMs = range === "week" ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
-    downloadCandleChart.data.datasets[0].data = bucketToOHLC(data.results, "download_mbps", bucketMs);
-    uploadCandleChart.data.datasets[0].data = bucketToOHLC(data.results, "upload_mbps", bucketMs);
-    downloadCandleChart.update();
-    uploadCandleChart.update();
+    const download = data.results.filter((r) => r.download_mbps != null).map((r) => ({ x: new Date(r.timestamp), y: r.download_mbps }));
+    const upload = data.results.filter((r) => r.upload_mbps != null).map((r) => ({ x: new Date(r.timestamp), y: r.upload_mbps }));
+    historyChart.data.datasets[0].data = download;
+    historyChart.data.datasets[1].data = upload;
+    historyChart.update();
   }
 
   document.querySelectorAll(".range-toggle").forEach((toggle) => {
