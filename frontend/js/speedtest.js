@@ -324,20 +324,43 @@
 
   runBtn.addEventListener("click", runTest);
 
-  // ---- History chart ----
-  const historyCtx = document.getElementById("historyChart").getContext("2d");
-  const historyChart = new Chart(historyCtx, {
-    type: "line",
-    data: {
-      datasets: [
-        { label: "دانلود (Mbps)", data: [], borderColor: "#4f8cff", pointRadius: 3, tension: 0.25 },
-        { label: "آپلود (Mbps)", data: [], borderColor: "#33c07c", pointRadius: 3, tension: 0.25 },
-      ],
-    },
-    options: {
+  // ---- History charts (candlestick, like a trading chart) ----
+  // Individual test results are sparse points, not a continuous price
+  // feed, so "candles" here are time buckets (hourly for the day view,
+  // daily for the week view): open = first result in the bucket,
+  // close = last, high/low = the fastest/slowest result seen in it. A
+  // single, mostly-flat bucket just renders as a candle with a tiny or
+  // no body/wick, same as a quiet trading period would.
+  function bucketToOHLC(results, field, bucketMs) {
+    const buckets = new Map();
+    results.forEach((r) => {
+      const val = r[field];
+      if (val == null) return;
+      const t = new Date(r.timestamp).getTime();
+      const bucketStart = Math.floor(t / bucketMs) * bucketMs;
+      if (!buckets.has(bucketStart)) buckets.set(bucketStart, []);
+      buckets.get(bucketStart).push({ t, val });
+    });
+    const candles = [];
+    for (const [bucketStart, points] of buckets) {
+      points.sort((a, b) => a.t - b.t);
+      const values = points.map((p) => p.val);
+      candles.push({
+        x: bucketStart,
+        o: points[0].val,
+        c: points[points.length - 1].val,
+        h: Math.max(...values),
+        l: Math.min(...values),
+      });
+    }
+    candles.sort((a, b) => a.x - b.x);
+    return candles;
+  }
+
+  function candleChartOptions(unitColor) {
+    return {
       responsive: true,
       animation: false,
-      parsing: false,
       scales: {
         x: { type: "time", ticks: { color: "#8b93a8" }, grid: { color: "#262f45" } },
         y: {
@@ -347,18 +370,53 @@
           title: { display: true, text: "Mbps", color: "#8b93a8" },
         },
       },
-      plugins: { legend: { labels: { color: "#e6e9f2" } } },
-    },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const d = ctx.raw;
+              return [`باز: ${d.o.toFixed(1)}`, `بالا: ${d.h.toFixed(1)}`, `پایین: ${d.l.toFixed(1)}`, `بسته: ${d.c.toFixed(1)}`];
+            },
+          },
+        },
+      },
+      elements: {
+        candlestick: {
+          // The plugin reads backgroundColors/borderColors (plural, an
+          // {up,down,unchanged} map) when painting — a singular `color`
+          // option (what seemed like the obvious key to try) is simply
+          // never read, so bars fall back to Chart.js's generic default
+          // blue/undefined fill and can end up looking blank against a
+          // dark page background. Found by inspecting a rendered
+          // candle's resolved element options, not by guessing.
+          backgroundColors: { up: "rgba(51, 192, 124, 0.55)", down: "rgba(229, 83, 75, 0.55)", unchanged: unitColor },
+          borderColors: { up: "#33c07c", down: "#e5534b", unchanged: unitColor },
+        },
+      },
+    };
+  }
+
+  const downloadCandleChart = new Chart(document.getElementById("historyChartDownload").getContext("2d"), {
+    type: "candlestick",
+    data: { datasets: [{ label: "دانلود (Mbps)", data: [] }] },
+    options: candleChartOptions("#4f8cff"),
+  });
+
+  const uploadCandleChart = new Chart(document.getElementById("historyChartUpload").getContext("2d"), {
+    type: "candlestick",
+    data: { datasets: [{ label: "آپلود (Mbps)", data: [] }] },
+    options: candleChartOptions("#33c07c"),
   });
 
   async function loadHistory(range) {
     const res = await fetch(`/api/speedtest/history?range=${range}`);
     const data = await res.json();
-    const download = data.results.filter((r) => r.download_mbps != null).map((r) => ({ x: new Date(r.timestamp), y: r.download_mbps }));
-    const upload = data.results.filter((r) => r.upload_mbps != null).map((r) => ({ x: new Date(r.timestamp), y: r.upload_mbps }));
-    historyChart.data.datasets[0].data = download;
-    historyChart.data.datasets[1].data = upload;
-    historyChart.update();
+    const bucketMs = range === "week" ? 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
+    downloadCandleChart.data.datasets[0].data = bucketToOHLC(data.results, "download_mbps", bucketMs);
+    uploadCandleChart.data.datasets[0].data = bucketToOHLC(data.results, "upload_mbps", bucketMs);
+    downloadCandleChart.update();
+    uploadCandleChart.update();
   }
 
   document.querySelectorAll(".range-toggle").forEach((toggle) => {

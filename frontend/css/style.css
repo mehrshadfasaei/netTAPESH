@@ -274,6 +274,15 @@ body {
 .unit-toggle button:last-child { border-start-end-radius: 6px; border-end-end-radius: 6px; border-inline-start: none; }
 .unit-toggle button.active { background: var(--accent); color: white; border-color: var(--accent); }
 
+.candle-block { margin-top: 1rem; }
+.candle-block + .candle-block { margin-top: 1.5rem; }
+.candle-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 0.35rem;
+}
+
 @media (max-width: 500px) {
   .gauge-row { flex-direction: column; gap: 0.75rem; }
   .side-info { flex-direction: row; width: auto; }
