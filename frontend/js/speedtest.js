@@ -328,7 +328,12 @@
 
   runBtn.addEventListener("click", runTest);
 
-  // ---- History chart (line/area) ----
+  // ---- History chart (line, no area fill) ----
+  // Bold connected line + prominent dots at each result, styled after a
+  // plain line-chart reference the user pointed at — no fill under the
+  // line (fill under two overlapping series muddies both colors), a
+  // thicker stroke, and bigger points so individual test results read
+  // clearly instead of blending into a thin line.
   const historyChart = new Chart(document.getElementById("historyChart").getContext("2d"), {
     type: "line",
     data: {
@@ -337,19 +342,31 @@
           label: "دانلود (Mbps)",
           data: [],
           borderColor: "#4f8cff",
-          backgroundColor: "rgba(79, 140, 255, 0.12)",
-          pointRadius: 2,
+          backgroundColor: "#4f8cff",
+          pointBackgroundColor: "#4f8cff",
+          pointBorderColor: "#0f1420",
+          pointBorderWidth: 2,
+          borderWidth: 3,
+          pointRadius: 5,
+          pointHoverRadius: 7,
           tension: 0.3,
-          fill: true,
+          spanGaps: true,
+          fill: false,
         },
         {
           label: "آپلود (Mbps)",
           data: [],
           borderColor: "#33c07c",
-          backgroundColor: "rgba(51, 192, 124, 0.12)",
-          pointRadius: 2,
+          backgroundColor: "#33c07c",
+          pointBackgroundColor: "#33c07c",
+          pointBorderColor: "#0f1420",
+          pointBorderWidth: 2,
+          borderWidth: 3,
+          pointRadius: 5,
+          pointHoverRadius: 7,
           tension: 0.3,
-          fill: true,
+          spanGaps: true,
+          fill: false,
         },
       ],
     },
