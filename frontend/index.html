@@ -317,8 +317,13 @@
       <div class="results-meta-list">
         <div class="results-meta-row">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span data-i18n="results.connection">اتصال</span>
-          <span class="results-meta-value" data-i18n="results.connectionValue">چندگانه (۴ کانکشن موازی)</span>
+          <span data-i18n="results.server">سرور تست</span>
+          <!-- Set dynamically per test (see serverChosen in runNdt7Test(),
+               showResultsOverlay() in speedtest.js) — the actual M-Lab
+               server location, not a fixed string, so you can verify
+               which server a test really ran against instead of just
+               trusting the #serverPrefSelect choice above the gauge. -->
+          <span id="resServer" class="results-meta-value">—</span>
         </div>
         <div class="results-meta-row">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1" stroke-linecap="round"/></svg>

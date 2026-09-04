@@ -107,8 +107,8 @@
       "results.upload": "آپلود Mbps",
       "results.pingMs": "پینگ ms",
       "results.jitterMs": "جیتر ms",
-      "results.connection": "اتصال",
-      "results.connectionValue": "چندگانه (۴ کانکشن موازی)",
+      "results.server": "سرور تست",
+      "results.serverUnknown": "نامشخص",
       "results.isp": "ارائه‌دهنده",
       "results.ip": "آی‌پی شما",
       "results.location": "لوکیشن",
@@ -117,6 +117,7 @@
       "quality.streaming": "استریم ویدیو",
       "quality.videocall": "تماس تصویری",
       "testing.connecting": "در حال پیدا کردن سرور…",
+      "testing.serverFound": "سرور: {location}",
       "testing.download": "در حال تست دانلود…",
       "testing.upload": "در حال تست آپلود…",
       "server.label": "سرور تست",
@@ -165,8 +166,8 @@
       "results.upload": "Upload Mbps",
       "results.pingMs": "Ping ms",
       "results.jitterMs": "Jitter ms",
-      "results.connection": "Connection",
-      "results.connectionValue": "Multiple (4 parallel connections)",
+      "results.server": "Test server",
+      "results.serverUnknown": "Unknown",
       "results.isp": "ISP",
       "results.ip": "Your IP",
       "results.location": "Location",
@@ -175,6 +176,7 @@
       "quality.streaming": "Video Streaming",
       "quality.videocall": "Video Chat",
       "testing.connecting": "Finding a server…",
+      "testing.serverFound": "Server: {location}",
       "testing.download": "Testing download…",
       "testing.upload": "Testing upload…",
       "server.label": "Test server",
@@ -322,6 +324,7 @@
   const resIsp = document.getElementById("resIsp");
   const resIp = document.getElementById("resIp");
   const resLocation = document.getElementById("resLocation");
+  const resServer = document.getElementById("resServer");
   const resultsQualityRow = document.getElementById("resultsQualityRow");
   const resultsTimestampEl = document.getElementById("resultsTimestamp");
 
@@ -412,6 +415,7 @@
     // always yield a readable server RTT.
     resPing.textContent = result.ping_ms != null ? result.ping_ms.toFixed(0) : "—";
     resJitter.textContent = result.jitter_ms != null ? result.jitter_ms.toFixed(1) : "—";
+    resServer.textContent = result.server_location || t("results.serverUnknown");
     resIsp.textContent = clientInfo.isp || "—";
     resIp.textContent = clientInfo.ip || "—";
     resLocation.textContent = clientInfo.location || "—";
@@ -698,6 +702,7 @@
       let downloadMbps = null;
       let uploadMbps = null;
       let sawDownloadStart = false;
+      let serverLocation = null; // "City, CC" once serverChosen fires — see below
 
       const config = {
         userAcceptedDataPolicy: true,
@@ -707,7 +712,19 @@
       const callbacks = {
         error: (msg) => reject(new Error(msg)),
         serverDiscovery: () => {},
-        serverChosen: () => {},
+        // Surface which server actually got picked — this is the ONLY
+        // way to confirm the #serverPrefSelect country choice actually
+        // took effect (locateNdt7Server() falls back silently to
+        // "nearest" if the requested country has no healthy server
+        // right now, which would otherwise look identical in the UI to
+        // the request having worked).
+        serverChosen: (choice) => {
+          const loc = choice && choice.location;
+          if (loc) {
+            serverLocation = [loc.city, loc.country].filter(Boolean).join(", ");
+            testPhaseEl.textContent = t("testing.serverFound", { location: serverLocation });
+          }
+        },
         downloadStart: () => {
           sawDownloadStart = true;
           setSpeedoDirection("down");
@@ -762,7 +779,13 @@
             const avg = rttSamples.reduce((a, b) => a + b, 0) / rttSamples.length;
             jitter_ms = rttSamples.reduce((sum, s) => sum + Math.abs(s - avg), 0) / rttSamples.length;
           }
-          resolve({ ping_ms, jitter_ms, download_mbps: downloadMbps, upload_mbps: uploadMbps });
+          resolve({
+            ping_ms,
+            jitter_ms,
+            download_mbps: downloadMbps,
+            upload_mbps: uploadMbps,
+            server_location: serverLocation,
+          });
         })
         .catch(reject);
     });
@@ -793,7 +816,7 @@
 
     try {
       testPhaseEl.textContent = t("testing.connecting");
-      const { ping_ms, jitter_ms, download_mbps, upload_mbps } = await runNdt7Test();
+      const { ping_ms, jitter_ms, download_mbps, upload_mbps, server_location } = await runNdt7Test();
       rPing.textContent = ping_ms != null ? ping_ms.toFixed(0) : "—";
       rJitter.textContent = jitter_ms != null ? jitter_ms.toFixed(1) : "—";
       setDownloadDisplay(download_mbps);
@@ -802,7 +825,7 @@
       testPhaseEl.textContent = "";
       resultMetaEl.textContent = t("result.done", { date: new Date().toLocaleString(localeName()) });
 
-      const result = { ping_ms, jitter_ms, download_mbps, upload_mbps };
+      const result = { ping_ms, jitter_ms, download_mbps, upload_mbps, server_location };
       await saveResult(result);
       loadHistory(document.querySelector('.range-toggle[data-target="history"] button.active').dataset.range);
       // The results overlay (with its own, smaller start-another-test
