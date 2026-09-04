@@ -119,6 +119,12 @@
       "testing.connecting": "در حال پیدا کردن سرور…",
       "testing.download": "در حال تست دانلود…",
       "testing.upload": "در حال تست آپلود…",
+      "server.label": "سرور تست",
+      "server.auto": "خودکار (نزدیک‌ترین)",
+      "server.de": "آلمان",
+      "server.nl": "هلند",
+      "server.fr": "فرانسه",
+      "server.gb": "انگلستان",
       "result.done": "تست در {date} انجام شد",
       "result.error": "خطا در اجرای تست — دوباره امتحان کن.",
       "result.last": "آخرین تست: {date}",
@@ -171,6 +177,12 @@
       "testing.connecting": "Finding a server…",
       "testing.download": "Testing download…",
       "testing.upload": "Testing upload…",
+      "server.label": "Test server",
+      "server.auto": "Automatic (nearest)",
+      "server.de": "Germany",
+      "server.nl": "Netherlands",
+      "server.fr": "France",
+      "server.gb": "United Kingdom",
       "result.done": "Test completed at {date}",
       "result.error": "Test failed — please try again.",
       "result.last": "Last test: {date}",
@@ -629,6 +641,8 @@
   // regardless of what page/path this script itself runs from.
   const NDT7_DOWNLOAD_WORKER = "/js/vendor/ndt7/ndt7-download-worker.js";
   const NDT7_UPLOAD_WORKER = "/js/vendor/ndt7/ndt7-upload-worker.js";
+  const NDT7_LOCATE_URL = "https://locate.measurementlab.net/v2/nearest/ndt/ndt7";
+  const serverPrefSelectEl = document.getElementById("serverPrefSelect");
 
   // NDT7 has no dedicated idle-ping phase like this app's old self-hosted
   // test did — the closest equivalent is TCPInfo.RTT (smoothed round-trip
@@ -642,6 +656,42 @@
     return typeof rttUs === "number" ? rttUs / 1000 : null;
   }
 
+  // Calls M-Lab's locate service ourselves (rather than ndt7.js's built-in
+  // discoverServerURLs — its config.loadbalancer path replaces the whole
+  // query string with its own metadata, which would silently drop a
+  // country=/strict= filter we tried to embed in that URL) so the
+  // #serverPrefSelect country choice above the گیج/gauge actually reaches
+  // the request. See https://github.com/m-lab/locate/blob/main/USAGE.md
+  // for the country/strict/region params this hits.
+  async function locateNdt7Server(country, callbacks) {
+    async function attempt(withCountry) {
+      const params = new URLSearchParams({ client_name: "nettapesh", client_version: "1.0" });
+      if (withCountry) {
+        params.set("country", withCountry);
+        params.set("strict", "true");
+      }
+      const url = new URL(NDT7_LOCATE_URL);
+      url.search = params;
+      callbacks.serverDiscovery({ loadbalancer: url });
+      const response = await fetch(url);
+      const js = await response.json();
+      return js.results && js.results.length > 0 ? js.results[0] : null;
+    }
+
+    let choice = await attempt(country);
+    if (!choice && country) {
+      // Requested country has no healthy server right now — fall back to
+      // whatever's actually nearest instead of failing the whole test.
+      choice = await attempt(null);
+    }
+    if (!choice) throw new Error("no ndt7 server available");
+    callbacks.serverChosen(choice);
+    return {
+      "///ndt/v7/download": choice.urls["wss:///ndt/v7/download"],
+      "///ndt/v7/upload": choice.urls["wss:///ndt/v7/upload"],
+    };
+  }
+
   function runNdt7Test() {
     return new Promise((resolve, reject) => {
       const rttSamples = [];
@@ -649,47 +699,53 @@
       let uploadMbps = null;
       let sawDownloadStart = false;
 
-      window.ndt7
-        .test(
-          {
-            userAcceptedDataPolicy: true,
-            metadata: { client_name: "nettapesh", client_version: "1.0" },
-            downloadworkerfile: NDT7_DOWNLOAD_WORKER,
-            uploadworkerfile: NDT7_UPLOAD_WORKER,
-          },
-          {
-            error: (msg) => reject(new Error(msg)),
-            downloadStart: () => {
-              sawDownloadStart = true;
-              setSpeedoDirection("down");
-              testPhaseEl.textContent = t("testing.download");
-            },
-            downloadMeasurement: ({ Source, Data }) => {
-              if (Source === "client") {
-                setDownloadDisplay(Data.MeanClientMbps, true);
-                return;
-              }
-              const rtt = extractRttMs(Data);
-              if (rtt == null) return;
-              rttSamples.push(rtt);
-              rPing.textContent = rtt.toFixed(0);
-            },
-            downloadComplete: ({ LastClientMeasurement }) => {
-              downloadMbps = (LastClientMeasurement && LastClientMeasurement.MeanClientMbps) ?? null;
-            },
-            uploadStart: () => {
-              resetGauge(); // fresh scale for upload — often a very different range than download
-              setSpeedoDirection("up");
-              testPhaseEl.textContent = t("testing.upload");
-            },
-            uploadMeasurement: ({ Source, Data }) => {
-              if (Source === "client") setUploadDisplay(Data.MeanClientMbps, true);
-            },
-            uploadComplete: ({ LastClientMeasurement }) => {
-              uploadMbps = (LastClientMeasurement && LastClientMeasurement.MeanClientMbps) ?? null;
-            },
+      const config = {
+        userAcceptedDataPolicy: true,
+        downloadworkerfile: NDT7_DOWNLOAD_WORKER,
+        uploadworkerfile: NDT7_UPLOAD_WORKER,
+      };
+      const callbacks = {
+        error: (msg) => reject(new Error(msg)),
+        serverDiscovery: () => {},
+        serverChosen: () => {},
+        downloadStart: () => {
+          sawDownloadStart = true;
+          setSpeedoDirection("down");
+          testPhaseEl.textContent = t("testing.download");
+        },
+        downloadMeasurement: ({ Source, Data }) => {
+          if (Source === "client") {
+            setDownloadDisplay(Data.MeanClientMbps, true);
+            return;
           }
-        )
+          const rtt = extractRttMs(Data);
+          if (rtt == null) return;
+          rttSamples.push(rtt);
+          rPing.textContent = rtt.toFixed(0);
+        },
+        downloadComplete: ({ LastClientMeasurement }) => {
+          downloadMbps = (LastClientMeasurement && LastClientMeasurement.MeanClientMbps) ?? null;
+        },
+        uploadStart: () => {
+          resetGauge(); // fresh scale for upload — often a very different range than download
+          setSpeedoDirection("up");
+          testPhaseEl.textContent = t("testing.upload");
+        },
+        uploadMeasurement: ({ Source, Data }) => {
+          if (Source === "client") setUploadDisplay(Data.MeanClientMbps, true);
+        },
+        uploadComplete: ({ LastClientMeasurement }) => {
+          uploadMbps = (LastClientMeasurement && LastClientMeasurement.MeanClientMbps) ?? null;
+        },
+      };
+
+      const urlPromise = locateNdt7Server(serverPrefSelectEl.value || null, callbacks);
+
+      (async () => {
+        const downloadCode = await window.ndt7.downloadTest(config, callbacks, urlPromise);
+        const uploadCode = await window.ndt7.uploadTest(config, callbacks, urlPromise);
+        return (downloadCode || 0) + (uploadCode || 0);
+      })()
         .then((code) => {
           if (code !== 0 || !sawDownloadStart) {
             reject(new Error(`ndt7 test did not complete (code ${code})`));
