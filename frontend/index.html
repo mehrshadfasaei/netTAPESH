@@ -100,8 +100,13 @@
            scale — more room given to the low end, same idea as a real
            speedometer). The arc/ticks are static SVG; only the needle
            rotation and the digital readout below it change per test —
-           see speedToAngle()/updateGauge() in speedtest.js. ---- -->
-      <div class="speedo-wrap">
+           see speedToAngle()/updateGauge() in speedtest.js.
+
+           Hidden until the user actually clicks "شروع تست" — per
+           feedback, the first thing shown should be just the start
+           button; the dial appears once a test is running, not
+           before. See runTest() in speedtest.js. ---- -->
+      <div class="speedo-wrap" id="speedoWrap" hidden>
         <svg id="speedoSvg" class="speedo-svg" viewBox="-20 -12 260 202"></svg>
         <div class="speedo-readout">
           <span id="gaugeLiveValue" class="speedo-value">0.00</span>
