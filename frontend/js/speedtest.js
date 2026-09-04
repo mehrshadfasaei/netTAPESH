@@ -417,6 +417,17 @@
 
   resultsCloseBtn.addEventListener("click", () => {
     resultsOverlay.hidden = true;
+    // The main start button hides once a test completes (see runTest())
+    // — closing the overlay without starting another test is the one
+    // way back to it, otherwise there'd be no way to test again from
+    // the main page at all.
+    runBtn.hidden = false;
+  });
+
+  const resultsRestartBtn = document.getElementById("resultsRestartBtn");
+  resultsRestartBtn.addEventListener("click", () => {
+    resultsOverlay.hidden = true;
+    runTest();
   });
 
   // ---- Speedometer gauge (needle dial) ----
@@ -781,6 +792,10 @@
       const result = { ping_ms, jitter_ms, download_mbps, upload_mbps };
       await saveResult(result);
       loadHistory(document.querySelector('.range-toggle[data-target="history"] button.active').dataset.range);
+      // The results overlay (with its own, smaller start-another-test
+      // button) takes over from here — hide the main one so it's not
+      // sitting there redundantly once you close back to the main page.
+      runBtn.hidden = true;
       showResultsOverlay(result);
     } catch (e) {
       testPhaseEl.textContent = "";
