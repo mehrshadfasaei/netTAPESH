@@ -20,6 +20,47 @@
  *     under-reports the link's steady-state speed.
  */
 (function () {
+  // ---- Dark/light theme toggle ----
+  // Explicit user choice, not prefers-color-scheme — stored so it
+  // survives a reload. Defaults to dark (this app's original look) if
+  // nothing was chosen yet or localStorage isn't available (private
+  // browsing, etc. — falls back to the default rather than breaking).
+  const THEME_KEY = "nettapesh-theme";
+  const themeToggleBtn = document.getElementById("themeToggle");
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    themeToggleBtn.querySelectorAll(".theme-toggle-half").forEach((half) => {
+      half.classList.toggle("active", half.dataset.themeChoice === theme);
+    });
+  }
+
+  function getStoredTheme() {
+    try {
+      return localStorage.getItem(THEME_KEY);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setStoredTheme(theme) {
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch (e) {
+      // best-effort — theme just won't persist across reloads
+    }
+  }
+
+  applyTheme(getStoredTheme() === "light" ? "light" : "dark");
+  themeToggleBtn.addEventListener("click", () => {
+    const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+    applyTheme(next);
+    setStoredTheme(next);
+    refreshChartTheme();
+  });
+
+  document.getElementById("footerYear").textContent = new Date().getFullYear();
+
   const PING_SAMPLES = 10;
   const PARALLEL_CONNECTIONS = 4;
   const TEST_DURATION_MS = 8000;
@@ -545,6 +586,16 @@
   // CATEGORY x-axis (one discrete label per test), not a continuous
   // time scale, since the point is comparing individual runs against
   // each other, not tracing a continuous quantity over time.
+  // Chart.js bakes color strings into its config at creation time — it
+  // doesn't read CSS custom properties live — so tick/grid colors are
+  // pulled from the current theme's computed CSS vars here, and
+  // re-applied by refreshChartTheme() whenever the theme toggles (see
+  // #themeToggle above), or the light-mode grid/labels would stay
+  // stuck with dark-mode colors after a switch.
+  function themeVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
   function makeHistoryBarChart(canvasId, color) {
     return new Chart(document.getElementById(canvasId).getContext("2d"), {
       type: "bar",
@@ -563,12 +614,12 @@
         responsive: true,
         animation: false,
         scales: {
-          x: { ticks: { color: "#8b93a8" }, grid: { display: false } },
+          x: { ticks: { color: themeVar("--text-dim") }, grid: { display: false } },
           y: {
-            ticks: { color: "#8b93a8" },
-            grid: { color: "#262f45" },
+            ticks: { color: themeVar("--text-dim") },
+            grid: { color: themeVar("--border") },
             beginAtZero: true,
-            title: { display: true, text: "Mbps", color: "#8b93a8" },
+            title: { display: true, text: "Mbps", color: themeVar("--text-dim") },
           },
         },
         plugins: { legend: { display: false } },
@@ -578,6 +629,16 @@
 
   const historyChartDown = makeHistoryBarChart("historyChartDown", "#4f8cff");
   const historyChartUp = makeHistoryBarChart("historyChartUp", "#33c07c");
+
+  function refreshChartTheme() {
+    [historyChartDown, historyChartUp].forEach((chart) => {
+      chart.options.scales.x.ticks.color = themeVar("--text-dim");
+      chart.options.scales.y.ticks.color = themeVar("--text-dim");
+      chart.options.scales.y.grid.color = themeVar("--border");
+      chart.options.scales.y.title.color = themeVar("--text-dim");
+      chart.update();
+    });
+  }
 
   // Label format depends on range: a single day of tests only needs the
   // time; a week needs the date too, or same-time tests on different
@@ -630,12 +691,22 @@
   loadHistory("day");
 
   // ---- Tab nav ----
+  function switchTab(tabName) {
+    document.querySelectorAll(".tab-nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tabName));
+    document.querySelectorAll(".page-tab").forEach((tab) => {
+      tab.hidden = tab.id !== `tab-${tabName}`;
+    });
+  }
   document.querySelectorAll(".tab-nav-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".tab-nav-btn").forEach((b) => b.classList.toggle("active", b === btn));
-      document.querySelectorAll(".page-tab").forEach((tab) => {
-        tab.hidden = tab.id !== `tab-${btn.dataset.tab}`;
-      });
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  });
+  // Footer shortcuts to each tab — same switch, just a second entry
+  // point.
+  document.querySelectorAll("[data-tab-link]").forEach((link) => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      switchTab(link.dataset.tabLink);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
   });
 
