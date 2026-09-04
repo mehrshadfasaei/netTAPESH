@@ -92,6 +92,10 @@
       "ping.empty": "دکمه‌ی شروع رو بزنید تا دورهای پشت‌سرهم پینگ/دانلود/آپلود شروع بشه.",
       "ping.pingLabel": "پینگ",
       "ping.error": "خطا در اتصال",
+      "ping.chartTitle": "روند سرعت در طول تست",
+      "ping.chartRound": "دور",
+      "ping.chartDown": "دانلود",
+      "ping.chartUp": "آپلود",
       "footer.desc": "اسپیدتست اینترنت خودمیزبان — بدون نصب، بدون حساب کاربری. پینگ، دانلود و آپلود مستقیماً در برابر همین سرور اندازه‌گیری می‌شه.",
       "footer.github": "مخزن GitHub",
       "footer.copyright": "© {year} netTAPESH — ساخته‌شده با FastAPI و جاوااسکریپت خالص.",
@@ -140,6 +144,10 @@
       "ping.empty": "Click Start to begin continuous ping/download/upload rounds.",
       "ping.pingLabel": "Ping",
       "ping.error": "Connection error",
+      "ping.chartTitle": "Speed trend over the test",
+      "ping.chartRound": "Round",
+      "ping.chartDown": "Download",
+      "ping.chartUp": "Upload",
       "footer.desc": "Self-hosted internet speed test — no install, no account. Ping, download, and upload are measured directly against this same server.",
       "footer.github": "GitHub Repo",
       "footer.copyright": "© {year} netTAPESH — built with FastAPI and vanilla JavaScript.",
@@ -243,6 +251,9 @@
     updateNowStamp();
     refreshChartTheme();
     loadHistory(document.querySelector('.range-toggle[data-target="history"] button.active').dataset.range);
+    // Re-render (not just re-theme) so round labels/legend switch
+    // language too — only matters if a finished run's chart is showing.
+    if (!pingLoopChartBlockEl.hidden) renderPingLoopChart();
   }
 
   function closeLangMenu() {
@@ -863,6 +874,52 @@
   const historyChartDown = makeHistoryBarChart("historyChartDown", "#4f8cff");
   const historyChartUp = makeHistoryBarChart("historyChartUp", "#33c07c");
 
+  // ---- Continuous-ping trend chart ----
+  // Built once when a continuous-ping run is stopped (not live-updated
+  // mid-run — see the toggle handler below), from the same
+  // pingLoopDownSamples/pingLoopUpSamples arrays the summary tiles
+  // average. A connected line (not bars, unlike the history charts
+  // above) since the point here is the trend across one continuous
+  // run, round to round, not comparing separate discrete tests.
+  const pingLoopChart = new Chart(document.getElementById("pingLoopChart").getContext("2d"), {
+    type: "line",
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: t("ping.chartDown"),
+          data: [],
+          borderColor: "#4f8cff",
+          backgroundColor: "#4f8cff",
+          pointRadius: 2,
+          tension: 0.3,
+        },
+        {
+          label: t("ping.chartUp"),
+          data: [],
+          borderColor: "#33c07c",
+          backgroundColor: "#33c07c",
+          pointRadius: 2,
+          tension: 0.3,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      scales: {
+        x: { ticks: { color: themeVar("--text-dim") }, grid: { display: false } },
+        y: {
+          ticks: { color: themeVar("--text-dim") },
+          grid: { color: themeVar("--border") },
+          beginAtZero: true,
+          title: { display: true, text: "Mbps", color: themeVar("--text-dim") },
+        },
+      },
+      plugins: { legend: { display: true, labels: { color: themeVar("--text-dim") } } },
+    },
+  });
+
   function refreshChartTheme() {
     [historyChartDown, historyChartUp].forEach((chart) => {
       chart.options.scales.x.ticks.color = themeVar("--text-dim");
@@ -871,6 +928,30 @@
       chart.options.scales.y.title.color = themeVar("--text-dim");
       chart.update();
     });
+    pingLoopChart.options.scales.x.ticks.color = themeVar("--text-dim");
+    pingLoopChart.options.scales.y.ticks.color = themeVar("--text-dim");
+    pingLoopChart.options.scales.y.grid.color = themeVar("--border");
+    pingLoopChart.options.scales.y.title.color = themeVar("--text-dim");
+    pingLoopChart.options.plugins.legend.labels.color = themeVar("--text-dim");
+    pingLoopChart.update();
+  }
+
+  // Rebuilds the trend chart from this run's collected samples — called
+  // once the loop is stopped (see the toggle handler below), not on
+  // every round, per the "build it when the test finishes" request.
+  function renderPingLoopChart() {
+    if (pingLoopDownSamples.length === 0) {
+      pingLoopChartBlockEl.hidden = true;
+      return;
+    }
+    const roundLabel = t("ping.chartRound");
+    pingLoopChart.data.labels = pingLoopDownSamples.map((_, i) => `${roundLabel} ${i + 1}`);
+    pingLoopChart.data.datasets[0].label = t("ping.chartDown");
+    pingLoopChart.data.datasets[0].data = pingLoopDownSamples;
+    pingLoopChart.data.datasets[1].label = t("ping.chartUp");
+    pingLoopChart.data.datasets[1].data = pingLoopUpSamples;
+    pingLoopChart.update();
+    pingLoopChartBlockEl.hidden = false;
   }
 
   // Label format depends on range: a single day of tests only needs the
@@ -958,6 +1039,7 @@
 
   const pingLoopToggleBtn = document.getElementById("pingLoopToggleBtn");
   const pingLoopBtnLabelEl = document.getElementById("pingLoopBtnLabel");
+  const pingLoopChartBlockEl = document.getElementById("pingLoopChartBlock");
   const pingLogEl = document.getElementById("pingLog");
   const pingLogEmptyEl = document.getElementById("pingLogEmpty");
   const pingSummaryRowEl = document.getElementById("pingSummaryRow");
@@ -1100,6 +1182,7 @@
       pingLoopRunning = false;
       pingLoopBtnLabelEl.textContent = t("pingtab.start");
       pingLoopToggleBtn.classList.remove("running");
+      renderPingLoopChart();
       return;
     }
     pingLoopRunning = true;
@@ -1111,6 +1194,7 @@
     pingLogEl.hidden = true;
     pingLogEmptyEl.hidden = false;
     pingSummaryRowEl.hidden = true;
+    pingLoopChartBlockEl.hidden = true;
     pingLoopBtnLabelEl.textContent = t("pingtab.stop");
     pingLoopToggleBtn.classList.add("running");
     runPingLoop();
