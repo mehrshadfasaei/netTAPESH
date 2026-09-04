@@ -59,7 +59,187 @@
     refreshChartTheme();
   });
 
-  document.getElementById("footerYear").textContent = new Date().getFullYear();
+  // ---- Language (fa/en) ----
+  // A real switch, not decoration: every static string in the page
+  // carries a data-i18n (textContent) or data-i18n-aria (aria-label)
+  // key, applied by applyLanguage() below; dynamically-generated
+  // strings (results overlay, ping log rows, chart labels, status
+  // messages) all go through t() at the point they're built instead of
+  // being hardcoded Persian, so switching languages mid-session
+  // updates them too, not just what was on screen at load time.
+  const LANG_KEY = "nettapesh-lang";
+  const I18N = {
+    fa: {
+      "lang.name": "فارسی",
+      "tab.speedtest": "تست سرعت",
+      "tab.continuousPing": "تست پشت سر هم",
+      "stat.download": "دانلود",
+      "stat.upload": "آپلود",
+      "mini.ping": "پینگ",
+      "mini.jitter": "جیتر",
+      "start.button": "شروع تست",
+      "history.title": "تاریخچه",
+      "range.day": "روز",
+      "range.week": "هفته",
+      "history.download": "دانلود (Mbps)",
+      "history.upload": "آپلود (Mbps)",
+      "pingtab.start": "شروع",
+      "pingtab.stop": "توقف",
+      "ping.rounds": "دورها",
+      "ping.avgPing": "میانگین پینگ",
+      "ping.avgDown": "میانگین دانلود",
+      "ping.avgUp": "میانگین آپلود",
+      "ping.empty": "دکمه‌ی شروع رو بزنید تا دورهای پشت‌سرهم پینگ/دانلود/آپلود شروع بشه.",
+      "ping.pingLabel": "پینگ",
+      "ping.error": "خطا در اتصال",
+      "footer.desc": "اسپیدتست اینترنت خودمیزبان — بدون نصب، بدون حساب کاربری. پینگ، دانلود و آپلود مستقیماً در برابر همین سرور اندازه‌گیری می‌شه.",
+      "footer.github": "مخزن GitHub",
+      "footer.copyright": "© {year} netTAPESH — ساخته‌شده با FastAPI و جاوااسکریپت خالص.",
+      "theme.toggle": "تغییر تم روشن/تیره",
+      "results.close": "بستن",
+      "results.download": "دانلود Mbps",
+      "results.upload": "آپلود Mbps",
+      "results.pingMs": "پینگ ms",
+      "results.jitterMs": "جیتر ms",
+      "results.connection": "اتصال",
+      "results.connectionValue": "چندگانه (۴ کانکشن موازی)",
+      "results.isp": "ارائه‌دهنده",
+      "results.ip": "آی‌پی شما",
+      "results.location": "لوکیشن",
+      "quality.browsing": "وب‌گردی",
+      "quality.gaming": "گیم آنلاین",
+      "quality.streaming": "استریم ویدیو",
+      "quality.videocall": "تماس تصویری",
+      "testing.ping": "در حال تست پینگ…",
+      "testing.download": "در حال تست دانلود…",
+      "testing.upload": "در حال تست آپلود…",
+      "result.done": "تست در {date} انجام شد",
+      "result.error": "خطا در اجرای تست — دوباره امتحان کن.",
+      "result.last": "آخرین تست: {date}",
+    },
+    en: {
+      "lang.name": "English",
+      "tab.speedtest": "Speed Test",
+      "tab.continuousPing": "Continuous Test",
+      "stat.download": "Download",
+      "stat.upload": "Upload",
+      "mini.ping": "Ping",
+      "mini.jitter": "Jitter",
+      "start.button": "Start Test",
+      "history.title": "History",
+      "range.day": "Day",
+      "range.week": "Week",
+      "history.download": "Download (Mbps)",
+      "history.upload": "Upload (Mbps)",
+      "pingtab.start": "Start",
+      "pingtab.stop": "Stop",
+      "ping.rounds": "Rounds",
+      "ping.avgPing": "Avg Ping",
+      "ping.avgDown": "Avg Download",
+      "ping.avgUp": "Avg Upload",
+      "ping.empty": "Click Start to begin continuous ping/download/upload rounds.",
+      "ping.pingLabel": "Ping",
+      "ping.error": "Connection error",
+      "footer.desc": "Self-hosted internet speed test — no install, no account. Ping, download, and upload are measured directly against this same server.",
+      "footer.github": "GitHub Repo",
+      "footer.copyright": "© {year} netTAPESH — built with FastAPI and vanilla JavaScript.",
+      "theme.toggle": "Toggle light/dark theme",
+      "results.close": "Close",
+      "results.download": "Download Mbps",
+      "results.upload": "Upload Mbps",
+      "results.pingMs": "Ping ms",
+      "results.jitterMs": "Jitter ms",
+      "results.connection": "Connection",
+      "results.connectionValue": "Multiple (4 parallel connections)",
+      "results.isp": "ISP",
+      "results.ip": "Your IP",
+      "results.location": "Location",
+      "quality.browsing": "Web Browsing",
+      "quality.gaming": "Online Gaming",
+      "quality.streaming": "Video Streaming",
+      "quality.videocall": "Video Chat",
+      "testing.ping": "Testing ping…",
+      "testing.download": "Testing download…",
+      "testing.upload": "Testing upload…",
+      "result.done": "Test completed at {date}",
+      "result.error": "Test failed — please try again.",
+      "result.last": "Last test: {date}",
+    },
+  };
+
+  let currentLang = "fa";
+
+  function t(key, vars) {
+    const dict = I18N[currentLang] || I18N.fa;
+    let str = dict[key] || I18N.fa[key] || key;
+    if (vars) {
+      for (const [k, v] of Object.entries(vars)) str = str.replace(`{${k}}`, v);
+    }
+    return str;
+  }
+
+  function localeName() {
+    return currentLang === "fa" ? "fa-IR" : "en-US";
+  }
+
+  const langToggleBtn = document.getElementById("langToggle");
+  const langToggleLabelEl = document.getElementById("langToggleLabel");
+
+  function getStoredLang() {
+    try {
+      return localStorage.getItem(LANG_KEY);
+    } catch (e) {
+      return null;
+    }
+  }
+  function setStoredLang(lang) {
+    try {
+      localStorage.setItem(LANG_KEY, lang);
+    } catch (e) {
+      // best-effort — language just won't persist across reloads
+    }
+  }
+
+  function renderFooterBottom() {
+    document.getElementById("footerBottom").innerHTML =
+      t("footer.copyright", { year: `<span id="footerYear">${new Date().getFullYear()}</span>` });
+  }
+
+  // applyLanguage() references pingLoopToggleBtn/pingLoopRunning/
+  // historyChartDown/loadHistory even though they're declared further
+  // down in this same closure — safe because this function's BODY only
+  // runs when called (the initial call and the click handler below are
+  // both after the whole script has finished executing top to bottom),
+  // not at definition time, so those bindings are long since
+  // initialized by then.
+  function applyLanguage(lang) {
+    currentLang = lang;
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+    langToggleLabelEl.textContent = t("lang.name");
+
+    document.querySelectorAll("[data-i18n]").forEach((el) => {
+      el.textContent = t(el.dataset.i18n);
+    });
+    document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+      el.setAttribute("aria-label", t(el.dataset.i18nAria));
+    });
+
+    // The continuous-ping start/stop button's label depends on running
+    // state too, not just language — re-derive rather than assume.
+    pingLoopToggleBtn.textContent = pingLoopRunning ? t("pingtab.stop") : t("pingtab.start");
+
+    renderFooterBottom();
+    updateNowStamp();
+    refreshChartTheme();
+    loadHistory(document.querySelector('.range-toggle[data-target="history"] button.active').dataset.range);
+  }
+
+  langToggleBtn.addEventListener("click", () => {
+    const next = currentLang === "fa" ? "en" : "fa";
+    applyLanguage(next);
+    setStoredLang(next);
+  });
 
   const PING_SAMPLES = 10;
   const PARALLEL_CONNECTIONS = 4;
@@ -96,7 +276,7 @@
 
   // ---- Clock (top-right timestamp, like Ookla's) ----
   function updateNowStamp() {
-    nowStampEl.textContent = new Date().toLocaleString("fa-IR", {
+    nowStampEl.textContent = new Date().toLocaleString(localeName(), {
       dateStyle: "short",
       timeStyle: "short",
     });
@@ -134,25 +314,25 @@
   const QUALITY_CATEGORIES = [
     {
       key: "browsing",
-      label: "وب‌گردی",
+      labelKey: "quality.browsing",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18" stroke-linecap="round"/></svg>',
       score: ({ ping, download }) => scoreFromThresholds(download, [1, 5, 15, 30]) - (ping > 150 ? 1 : 0),
     },
     {
       key: "gaming",
-      label: "گیم آنلاین",
+      labelKey: "quality.gaming",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4M15.5 12h.01M18.5 10h.01" stroke-linecap="round"/></svg>',
       score: ({ ping, jitter }) => scoreFromThresholds(150 - ping, [0, 50, 90, 120]) - (jitter > 20 ? 1 : 0),
     },
     {
       key: "streaming",
-      label: "استریم ویدیو",
+      labelKey: "quality.streaming",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="15" height="14" rx="2"/><path d="M17 8l5-3v14l-5-3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       score: ({ download }) => scoreFromThresholds(download, [2, 5, 15, 25]),
     },
     {
       key: "videocall",
-      label: "تماس تصویری",
+      labelKey: "quality.videocall",
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="15" height="12" rx="2"/><path d="M17 10l5-3v10l-5-3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="11" r="2.2"/></svg>',
       score: ({ ping, jitter, upload }) => scoreFromThresholds(Math.min(upload, 100 - ping), [0, 5, 15, 25]) - (jitter > 30 ? 1 : 0),
     },
@@ -182,7 +362,7 @@
     resIsp.textContent = clientInfo.isp || "—";
     resIp.textContent = clientInfo.ip || "—";
     resLocation.textContent = clientInfo.location || "—";
-    resultsTimestampEl.textContent = `تست در ${new Date().toLocaleString("fa-IR")} انجام شد`;
+    resultsTimestampEl.textContent = t("result.done", { date: new Date().toLocaleString(localeName()) });
 
     resultsQualityRow.innerHTML = QUALITY_CATEGORIES.map((cat) => {
       const score = cat.score({
@@ -194,7 +374,7 @@
       return `
         <div class="results-quality-item">
           <span class="icon">${cat.icon}</span>
-          <span class="results-quality-label">${cat.label}</span>
+          <span class="results-quality-label">${t(cat.labelKey)}</span>
           <span class="results-quality-dots">${renderQualityDots(score)}</span>
         </div>
       `;
@@ -546,24 +726,24 @@
     resetGauge();
 
     try {
-      testPhaseEl.textContent = "در حال تست پینگ…";
+      testPhaseEl.textContent = t("testing.ping");
       const { ping_ms, jitter_ms } = await measurePing();
       rPing.textContent = ping_ms.toFixed(0);
       rJitter.textContent = jitter_ms.toFixed(1);
 
       setSpeedoDirection("down");
-      testPhaseEl.textContent = "در حال تست دانلود…";
+      testPhaseEl.textContent = t("testing.download");
       const download_mbps = await measureDownload();
       setDownloadDisplay(download_mbps);
 
       resetGauge(); // fresh scale for upload — often a very different range than download
       setSpeedoDirection("up");
-      testPhaseEl.textContent = "در حال تست آپلود…";
+      testPhaseEl.textContent = t("testing.upload");
       const upload_mbps = await measureUpload();
       setUploadDisplay(upload_mbps);
 
       testPhaseEl.textContent = "";
-      resultMetaEl.textContent = `تست در ${new Date().toLocaleString("fa-IR")} انجام شد`;
+      resultMetaEl.textContent = t("result.done", { date: new Date().toLocaleString(localeName()) });
 
       const result = { ping_ms, jitter_ms, download_mbps, upload_mbps };
       await saveResult(result);
@@ -571,7 +751,7 @@
       showResultsOverlay(result);
     } catch (e) {
       testPhaseEl.textContent = "";
-      resultMetaEl.textContent = "خطا در اجرای تست — دوباره امتحان کن.";
+      resultMetaEl.textContent = t("result.error");
       resetGauge();
     } finally {
       runBtn.disabled = false;
@@ -646,8 +826,8 @@
   function formatHistoryLabel(ts, range) {
     const d = new Date(ts);
     return range === "week"
-      ? d.toLocaleString("fa-IR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-      : d.toLocaleString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+      ? d.toLocaleString(localeName(), { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+      : d.toLocaleString(localeName(), { hour: "2-digit", minute: "2-digit" });
   }
 
   async function loadHistory(range) {
@@ -683,12 +863,10 @@
     if (r.jitter_ms != null) rJitter.textContent = r.jitter_ms.toFixed(1);
     if (r.download_mbps != null) setDownloadDisplay(r.download_mbps);
     if (r.upload_mbps != null) setUploadDisplay(r.upload_mbps);
-    resultMetaEl.textContent = `آخرین تست: ${new Date(r.timestamp).toLocaleString("fa-IR")}`;
+    resultMetaEl.textContent = t("result.last", { date: new Date(r.timestamp).toLocaleString(localeName()) });
   }
 
   resetGauge();
-  loadLatest();
-  loadHistory("day");
 
   // ---- Tab nav ----
   function switchTab(tabName) {
@@ -770,14 +948,20 @@
     const row = document.createElement("div");
     row.className = "ping-row" + (isError ? " error" : "");
     if (isError) {
-      row.innerHTML = `<span class="ping-row-seq">#${pingLoopSeq}</span><span class="ping-row-error">خطا در اتصال</span>`;
+      const seq = document.createElement("span");
+      seq.className = "ping-row-seq";
+      seq.textContent = `#${pingLoopSeq}`;
+      const err = document.createElement("span");
+      err.className = "ping-row-error";
+      err.textContent = t("ping.error");
+      row.append(seq, err);
     } else {
       const seq = document.createElement("span");
       seq.className = "ping-row-seq";
       seq.textContent = `#${pingLoopSeq}`;
       row.append(
         seq,
-        pingBadge(`پینگ ${pingMs.toFixed(0)}ms`, pingQualityClass(pingMs)),
+        pingBadge(`${t("ping.pingLabel")} ${pingMs.toFixed(0)}ms`, pingQualityClass(pingMs)),
         pingBadge(`↓ ${downMbps.toFixed(1)} Mbps`, speedQualityClass(downMbps)),
         pingBadge(`↑ ${upMbps.toFixed(1)} Mbps`, speedQualityClass(upMbps))
       );
@@ -793,7 +977,8 @@
   function renderPingStats() {
     if (pingLoopPingSamples.length === 0) return;
     pingSummaryRowEl.hidden = false;
-    pingSummaryRoundsEl.textContent = String(pingLoopSeq).replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+    pingSummaryRoundsEl.textContent =
+      currentLang === "fa" ? String(pingLoopSeq).replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]) : String(pingLoopSeq);
     pingSummaryPingEl.textContent = `${avg(pingLoopPingSamples).toFixed(0)}ms`;
     pingSummaryDownEl.textContent = `${avg(pingLoopDownSamples).toFixed(1)} Mbps`;
     pingSummaryUpEl.textContent = `${avg(pingLoopUpSamples).toFixed(1)} Mbps`;
@@ -850,7 +1035,7 @@
   pingLoopToggleBtn.addEventListener("click", () => {
     if (pingLoopRunning) {
       pingLoopRunning = false;
-      pingLoopToggleBtn.textContent = "شروع";
+      pingLoopToggleBtn.textContent = t("pingtab.start");
       pingLoopToggleBtn.classList.remove("running");
       return;
     }
@@ -863,8 +1048,16 @@
     pingLogEl.hidden = true;
     pingLogEmptyEl.hidden = false;
     pingSummaryRowEl.hidden = true;
-    pingLoopToggleBtn.textContent = "توقف";
+    pingLoopToggleBtn.textContent = t("pingtab.stop");
     pingLoopToggleBtn.classList.add("running");
     runPingLoop();
   });
+
+  // Apply the stored/default language now that every section above
+  // (ping loop, history charts, etc.) it touches is initialized —
+  // applyLanguage() itself reloads the history charts with correctly-
+  // localized labels; loadLatest() runs after it so the "last test"
+  // message it sets is in the right language too.
+  applyLanguage(getStoredLang() === "en" ? "en" : "fa");
+  loadLatest();
 })();

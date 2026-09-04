@@ -99,10 +99,9 @@ body {
   white-space: nowrap;
 }
 
-/* Static label, not a functional dropdown — the app only has one
-   language right now, so a working switcher would promise something
-   that isn't there. Kept in the header only because the reference
-   layout has one, styled the same as a real one would be. */
+/* Real fa/en switcher (see #langToggle in speedtest.js) — shows the
+   current language's name, click toggles to the other and re-renders
+   every [data-i18n] string on the page. */
 .lang-badge {
   display: flex;
   align-items: center;
@@ -110,9 +109,13 @@ body {
   font-size: 0.8rem;
   color: var(--text-dim);
   padding: 0.3rem 0.6rem;
+  background: transparent;
   border: 1px solid var(--border);
   border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
 }
+.lang-badge:hover { color: var(--text); border-color: var(--text-dim); }
 .lang-badge .icon { width: 1em; height: 1em; }
 
 /* Dark/light toggle — a pill with two icon halves (sun/moon), the
