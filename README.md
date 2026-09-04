@@ -122,6 +122,49 @@ platform's "deploy from GitHub repo" flow at this repo; no extra config
 needed beyond what's already in the `Dockerfile`. Same persistent-disk
 caveat as Render applies unless you attach a volume.
 
+### A VPS (recommended if accuracy matters)
+
+This is genuinely the best option for a speed test, not just a fallback:
+a free-tier PaaS gives you no control over *where* the server sits, and
+for measuring your own connection, the server's location relative to you
+is the whole point. Pick a VPS in the country/city you actually want to
+test against — an Iranian VPS to measure your real ISP speed inside
+Iran (a foreign server would measure the international route instead,
+which isn't the same thing and isn't a bug in the app), a VPS elsewhere
+if that's what you actually want to test against.
+
+No PaaS-specific config needed — this repo's `Dockerfile` and
+`docker-compose.yml` already do everything:
+
+1. Get any Linux VPS (Ubuntu 22.04+ is a safe default) with root/SSH
+   access — this rules out shared/cPanel "hosting" plans, which don't
+   give you a shell or let you run a custom server process; you need a
+   VPS specifically. 1 vCPU / 1GB RAM is plenty; check the plan's
+   **monthly bandwidth**, since each test moves real data (hundreds of
+   MB per run).
+2. Install Docker + the Compose plugin:
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   ```
+3. Clone this repo and start it:
+   ```bash
+   git clone https://github.com/mehrshadfasaei/nettapesh.git
+   cd nettapesh
+   docker compose up -d --build
+   ```
+   `restart: unless-stopped` in `docker-compose.yml` means it comes back
+   up automatically after a server reboot, and `./data` is a bind mount
+   (not the container's own ephemeral filesystem), so history survives
+   restarts/redeploys — the opposite of the free-tier PaaS trade-off
+   above.
+4. Open `http://<your-server-ip>:8000`. For a real domain with
+   `https://`, put a reverse proxy in front (Caddy is the least config —
+   point it at `localhost:8000` and it handles TLS automatically; nginx
+   + certbot works the same way with more steps).
+5. Open port 8000 (or 80/443 if you're using a reverse proxy) in the
+   provider's firewall/security-group panel — most VPS providers block
+   everything but SSH by default.
+
 ## API
 
 | Method | Path | Description |
