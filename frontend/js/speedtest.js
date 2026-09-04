@@ -328,73 +328,70 @@
 
   runBtn.addEventListener("click", runTest);
 
-  // ---- History chart (line, no area fill) ----
-  // Bold connected line + prominent dots at each result, styled after a
-  // plain line-chart reference the user pointed at — no fill under the
-  // line (fill under two overlapping series muddies both colors), a
-  // thicker stroke, and bigger points so individual test results read
-  // clearly instead of blending into a thin line.
-  const historyChart = new Chart(document.getElementById("historyChart").getContext("2d"), {
-    type: "line",
-    data: {
-      datasets: [
-        {
-          label: "دانلود (Mbps)",
-          data: [],
-          borderColor: "#4f8cff",
-          backgroundColor: "#4f8cff",
-          pointBackgroundColor: "#4f8cff",
-          pointBorderColor: "#0f1420",
-          pointBorderWidth: 2,
-          borderWidth: 3,
-          pointRadius: 5,
-          pointHoverRadius: 7,
-          tension: 0.3,
-          spanGaps: true,
-          fill: false,
-        },
-        {
-          label: "آپلود (Mbps)",
-          data: [],
-          borderColor: "#33c07c",
-          backgroundColor: "#33c07c",
-          pointBackgroundColor: "#33c07c",
-          pointBorderColor: "#0f1420",
-          pointBorderWidth: 2,
-          borderWidth: 3,
-          pointRadius: 5,
-          pointHoverRadius: 7,
-          tension: 0.3,
-          spanGaps: true,
-          fill: false,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      animation: false,
-      parsing: false,
-      scales: {
-        x: { type: "time", ticks: { color: "#8b93a8" }, grid: { color: "#262f45" } },
-        y: {
-          ticks: { color: "#8b93a8" },
-          grid: { color: "#262f45" },
-          beginAtZero: true,
-          title: { display: true, text: "Mbps", color: "#8b93a8" },
-        },
+  // ---- History charts (two separate bar charts, download and upload
+  // stacked one above the other, per user request) ----
+  // Each bar is one saved test result, labeled by the time it ran — a
+  // CATEGORY x-axis (one discrete label per test), not a continuous
+  // time scale, since the point is comparing individual runs against
+  // each other, not tracing a continuous quantity over time.
+  function makeHistoryBarChart(canvasId, color) {
+    return new Chart(document.getElementById(canvasId).getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: [],
+        datasets: [
+          {
+            data: [],
+            backgroundColor: color,
+            borderRadius: 4,
+            maxBarThickness: 48,
+          },
+        ],
       },
-      plugins: { legend: { labels: { color: "#e6e9f2" } } },
-    },
-  });
+      options: {
+        responsive: true,
+        animation: false,
+        scales: {
+          x: { ticks: { color: "#8b93a8" }, grid: { display: false } },
+          y: {
+            ticks: { color: "#8b93a8" },
+            grid: { color: "#262f45" },
+            beginAtZero: true,
+            title: { display: true, text: "Mbps", color: "#8b93a8" },
+          },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+  }
+
+  const historyChartDown = makeHistoryBarChart("historyChartDown", "#4f8cff");
+  const historyChartUp = makeHistoryBarChart("historyChartUp", "#33c07c");
+
+  // Label format depends on range: a single day of tests only needs the
+  // time; a week needs the date too, or same-time tests on different
+  // days would look identical on the x-axis.
+  function formatHistoryLabel(ts, range) {
+    const d = new Date(ts);
+    return range === "week"
+      ? d.toLocaleString("fa-IR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+      : d.toLocaleString("fa-IR", { hour: "2-digit", minute: "2-digit" });
+  }
 
   async function loadHistory(range) {
     const res = await fetch(`/api/speedtest/history?range=${range}`);
     const data = await res.json();
-    const download = data.results.filter((r) => r.download_mbps != null).map((r) => ({ x: new Date(r.timestamp), y: r.download_mbps }));
-    const upload = data.results.filter((r) => r.upload_mbps != null).map((r) => ({ x: new Date(r.timestamp), y: r.upload_mbps }));
-    historyChart.data.datasets[0].data = download;
-    historyChart.data.datasets[1].data = upload;
-    historyChart.update();
+
+    const downRows = data.results.filter((r) => r.download_mbps != null);
+    const upRows = data.results.filter((r) => r.upload_mbps != null);
+
+    historyChartDown.data.labels = downRows.map((r) => formatHistoryLabel(r.timestamp, range));
+    historyChartDown.data.datasets[0].data = downRows.map((r) => r.download_mbps);
+    historyChartDown.update();
+
+    historyChartUp.data.labels = upRows.map((r) => formatHistoryLabel(r.timestamp, range));
+    historyChartUp.data.datasets[0].data = upRows.map((r) => r.upload_mbps);
+    historyChartUp.update();
   }
 
   document.querySelectorAll(".range-toggle").forEach((toggle) => {
