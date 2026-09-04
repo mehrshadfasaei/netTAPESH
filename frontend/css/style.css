@@ -368,7 +368,7 @@ body {
 .speedo-readout {
   position: absolute;
   left: 50%;
-  bottom: 6%;
+  bottom: -4%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -497,9 +497,9 @@ body {
 .unit-toggle button:last-child { border-start-end-radius: 6px; border-end-end-radius: 6px; border-inline-start: none; }
 .unit-toggle button.active { background: var(--accent); color: white; border-color: var(--accent); }
 
-.history-chart-block + .history-chart-block { margin-top: 1.5rem; }
+.history-chart-block + .history-chart-block { margin-top: 2.5rem; }
 .history-chart-title {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.75rem;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-dim);
@@ -831,5 +831,7 @@ body {
 }
 
 @media (max-width: 500px) {
-  .footer-inner { flex-direction: column; }
+  .footer-inner { flex-direction: column; align-items: center; text-align: center; }
+  .footer-brand { flex-direction: column; align-items: center; }
+  .footer-links { align-items: center; }
 }
