@@ -761,6 +761,7 @@
 
   async function runTest() {
     speedoWrapEl.hidden = false; // reveal the dial now that a test is actually running
+    runBtn.hidden = true; // hide the moment the test starts, not just once it finishes
     runBtn.disabled = true;
     rPing.textContent = "—";
     rJitter.textContent = "—";
@@ -801,6 +802,10 @@
       testPhaseEl.textContent = "";
       resultMetaEl.textContent = t("result.error");
       resetGauge();
+      // No results overlay (with its own restart button) shows on
+      // error — bring the main button back or there'd be no way to
+      // retry at all.
+      runBtn.hidden = false;
     } finally {
       runBtn.disabled = false;
     }
