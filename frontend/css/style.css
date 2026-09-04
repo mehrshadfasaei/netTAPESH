@@ -409,6 +409,12 @@ body {
   padding: 1rem 1.25rem 1.25rem;
 }
 .card-wide { width: 100%; }
+/* Scoped opt-in for one card (the continuous-ping tab) to keep a
+   visible border, per request — the rest of the site stays flat/
+   borderless. Uses var(--border), which is fine here (unlike the
+   ping-log terminal box) since this card's own background follows the
+   theme too, not fixed dark. */
+.card-bordered { border: 1px solid var(--border); border-radius: 12px; }
 /* .test-panel already sets its own (larger, centered-content) padding
    above — re-assert it here so .card's padding (later in source order,
    same specificity) doesn't win the cascade when both classes are on
