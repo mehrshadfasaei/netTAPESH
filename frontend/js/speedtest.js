@@ -916,9 +916,23 @@
           title: { display: true, text: "Mbps", color: themeVar("--text-dim") },
         },
       },
-      plugins: { legend: { display: true, labels: { color: themeVar("--text-dim") } } },
+      // Legend off — the checkboxes above the chart (#pingChartToggleDown/Up)
+      // do the same show/hide job as an obvious, always-visible control,
+      // instead of the chart's own legend where "click to toggle" isn't
+      // obvious at a glance.
+      plugins: { legend: { display: false } },
     },
   });
+
+  const pingChartToggleDownEl = document.getElementById("pingChartToggleDown");
+  const pingChartToggleUpEl = document.getElementById("pingChartToggleUp");
+  function applyPingChartSeriesToggles() {
+    pingLoopChart.setDatasetVisibility(0, pingChartToggleDownEl.checked);
+    pingLoopChart.setDatasetVisibility(1, pingChartToggleUpEl.checked);
+    pingLoopChart.update();
+  }
+  pingChartToggleDownEl.addEventListener("change", applyPingChartSeriesToggles);
+  pingChartToggleUpEl.addEventListener("change", applyPingChartSeriesToggles);
 
   function refreshChartTheme() {
     [historyChartDown, historyChartUp].forEach((chart) => {
@@ -932,7 +946,6 @@
     pingLoopChart.options.scales.y.ticks.color = themeVar("--text-dim");
     pingLoopChart.options.scales.y.grid.color = themeVar("--border");
     pingLoopChart.options.scales.y.title.color = themeVar("--text-dim");
-    pingLoopChart.options.plugins.legend.labels.color = themeVar("--text-dim");
     pingLoopChart.update();
   }
 
@@ -950,7 +963,7 @@
     pingLoopChart.data.datasets[0].data = pingLoopDownSamples;
     pingLoopChart.data.datasets[1].label = t("ping.chartUp");
     pingLoopChart.data.datasets[1].data = pingLoopUpSamples;
-    pingLoopChart.update();
+    applyPingChartSeriesToggles(); // re-assert the checkboxes' state, calls update()
     pingLoopChartBlockEl.hidden = false;
   }
 

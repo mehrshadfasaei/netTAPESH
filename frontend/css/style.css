@@ -498,12 +498,48 @@ body {
 .unit-toggle button.active { background: var(--accent); color: white; border-color: var(--accent); }
 
 .history-chart-block + .history-chart-block { margin-top: 2.5rem; }
+/* pingLoopChartBlock sits after .ping-log, not after another chart
+   block, so the "+" rule above doesn't reach it — needs its own gap. */
+#pingLoopChartBlock { margin-top: 1.5rem; }
 .history-chart-title {
   margin: 0 0 0.75rem;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-dim);
 }
+
+/* Checkboxes to show/hide each line on the ping-loop trend chart (see
+   #pingChartToggleDown/Up in speedtest.js) — replaces the chart's own
+   clickable legend so the toggle is an obvious, always-visible control
+   instead of a "click the legend" affordance easy to miss. */
+.history-chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.history-chart-head .history-chart-title { margin: 0; }
+.chart-series-toggles {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.chart-series-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+.chart-series-toggle input { accent-color: var(--accent); cursor: pointer; }
+.chart-series-toggle-down { color: #4f8cff; }
+.chart-series-toggle-up { color: #33c07c; }
+.chart-series-toggle-down input { accent-color: #4f8cff; }
+.chart-series-toggle-up input { accent-color: #33c07c; }
 
 /* ---- Results overlay (shown after a test completes) ---- */
 .results-overlay {
