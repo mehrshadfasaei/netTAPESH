@@ -237,7 +237,7 @@
 
     // The continuous-ping start/stop button's label depends on running
     // state too, not just language — re-derive rather than assume.
-    pingLoopToggleBtn.textContent = pingLoopRunning ? t("pingtab.stop") : t("pingtab.start");
+    pingLoopBtnLabelEl.textContent = pingLoopRunning ? t("pingtab.stop") : t("pingtab.start");
 
     renderFooterBottom();
     updateNowStamp();
@@ -957,6 +957,7 @@
   const pingLoopUploadBuffer = new Uint8Array(PING_LOOP_UPLOAD_BYTES);
 
   const pingLoopToggleBtn = document.getElementById("pingLoopToggleBtn");
+  const pingLoopBtnLabelEl = document.getElementById("pingLoopBtnLabel");
   const pingLogEl = document.getElementById("pingLog");
   const pingLogEmptyEl = document.getElementById("pingLogEmpty");
   const pingSummaryRowEl = document.getElementById("pingSummaryRow");
@@ -1088,7 +1089,7 @@
   pingLoopToggleBtn.addEventListener("click", () => {
     if (pingLoopRunning) {
       pingLoopRunning = false;
-      pingLoopToggleBtn.textContent = t("pingtab.start");
+      pingLoopBtnLabelEl.textContent = t("pingtab.start");
       pingLoopToggleBtn.classList.remove("running");
       return;
     }
@@ -1101,7 +1102,7 @@
     pingLogEl.hidden = true;
     pingLogEmptyEl.hidden = false;
     pingSummaryRowEl.hidden = true;
-    pingLoopToggleBtn.textContent = t("pingtab.stop");
+    pingLoopBtnLabelEl.textContent = t("pingtab.stop");
     pingLoopToggleBtn.classList.add("running");
     runPingLoop();
   });
