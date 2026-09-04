@@ -282,6 +282,117 @@ body {
   color: var(--text-dim);
 }
 
+/* ---- Results overlay (shown after a test completes) ---- */
+.results-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--bg);
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem 3rem;
+}
+/* Same specificity as the rule above ([hidden] vs .results-overlay), so
+   without this the "display: flex" above would win and the overlay
+   would stay visible (just empty) even while [hidden] is set. */
+.results-overlay[hidden] { display: none; }
+
+.results-panel {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.results-close {
+  position: absolute;
+  top: -0.5rem;
+  inset-inline-end: -0.5rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.results-close:hover { color: var(--text); border-color: var(--text-dim); }
+
+.results-stat-row {
+  display: flex;
+  gap: 2.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+.results-stat { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; }
+.results-stat-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.results-stat-value { font-size: 2.6rem; font-weight: 700; line-height: 1.1; }
+
+.results-mini-row { display: flex; gap: 2.5rem; justify-content: center; }
+.results-mini { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; }
+.results-mini-label { font-size: 0.8rem; color: var(--text-dim); }
+.results-mini-value { font-size: 1.1rem; font-weight: 700; }
+
+.results-quality-row {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+.results-quality-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 80px;
+}
+.results-quality-item .icon { width: 1.6em; height: 1.6em; color: var(--text-dim); }
+.results-quality-label { font-size: 0.7rem; color: var(--text-dim); text-align: center; }
+.results-quality-dots { display: flex; gap: 0.2rem; }
+.results-quality-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.results-quality-dot.filled { background: var(--accent); }
+
+.results-meta-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1.25rem;
+}
+.results-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+.results-meta-row .icon { width: 1.3em; height: 1.3em; flex-shrink: 0; }
+.results-meta-value { margin-inline-start: auto; color: var(--text); text-align: end; }
+
+@media (max-width: 500px) {
+  .results-stat-row { gap: 1.5rem; }
+  .results-stat-value { font-size: 2.1rem; }
+}
+
 @media (max-width: 500px) {
   .gauge-row { flex-direction: column; gap: 0.75rem; }
   .side-info { flex-direction: row; width: auto; }

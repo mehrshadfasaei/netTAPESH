@@ -99,6 +99,73 @@
     </section>
   </main>
 
+  <!-- ---- Results overlay: shown after a test finishes, styled after a
+       real Speedtest.net results screen the user pointed at. Hidden by
+       default (see [hidden] in style.css); JS fills every value in and
+       un-hides it once a test completes. ---- -->
+  <div id="resultsOverlay" class="results-overlay" hidden>
+    <div class="results-panel">
+      <button id="resultsCloseBtn" class="results-close" aria-label="بستن">✕</button>
+
+      <div class="results-stat-row">
+        <div class="results-stat">
+          <div class="results-stat-head icon-down">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v14M6 12l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>دانلود Mbps</span>
+          </div>
+          <span id="resDown" class="results-stat-value">—</span>
+        </div>
+        <div class="results-stat">
+          <div class="results-stat-head icon-up">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V6M6 12l6-6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>آپلود Mbps</span>
+          </div>
+          <span id="resUp" class="results-stat-value">—</span>
+        </div>
+      </div>
+
+      <div class="results-mini-row">
+        <div class="results-mini">
+          <span class="results-mini-label">پینگ ms</span>
+          <span id="resPing" class="results-mini-value">—</span>
+        </div>
+        <div class="results-mini">
+          <span class="results-mini-label">جیتر ms</span>
+          <span id="resJitter" class="results-mini-value">—</span>
+        </div>
+      </div>
+
+      <div class="results-quality-row" id="resultsQualityRow">
+        <!-- filled by JS: gaming / streaming / video-call / web-browsing, each with a 5-dot rating -->
+      </div>
+
+      <div class="results-meta-list">
+        <div class="results-meta-row">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>اتصال</span>
+          <span class="results-meta-value">چندگانه (۴ کانکشن موازی)</span>
+        </div>
+        <div class="results-meta-row">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1" stroke-linecap="round"/></svg>
+          <span>ارائه‌دهنده</span>
+          <span id="resIsp" class="results-meta-value">—</span>
+        </div>
+        <div class="results-meta-row">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5" stroke-linecap="round"/></svg>
+          <span>آی‌پی شما</span>
+          <span id="resIp" class="results-meta-value">—</span>
+        </div>
+        <div class="results-meta-row">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
+          <span>لوکیشن</span>
+          <span id="resLocation" class="results-meta-value">—</span>
+        </div>
+      </div>
+
+      <div id="resultsTimestamp" class="hint"></div>
+    </div>
+  </div>
+
   <script src="/js/speedtest.js"></script>
 </body>
 </html>
