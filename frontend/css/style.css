@@ -474,44 +474,40 @@ body {
 }
 
 /* ---- Tab nav ---- */
-/* A centered segmented-pill control, same visual language as the
-   range/unit toggles elsewhere in the app (a filled pill for the
-   active choice) — an earlier plain underlined-text bar read as a
-   secondary nav link, not a real "which mode am I in" switch, which
-   is what this actually is. */
+/* Full-width icon+label tabs with a bottom-border indicator (like a
+   real app/web tab bar, e.g. browser dev-tools panels) — replaces an
+   earlier pill-segmented control the design didn't land. */
 .tab-nav {
-  display: flex;
-  justify-content: center;
-  padding: 1rem 1.5rem 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0 1.5rem;
 }
 .tab-nav-inner {
-  display: inline-flex;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.25rem;
-  gap: 0.25rem;
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
 }
 .tab-nav-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   background: transparent;
   border: none;
-  border-radius: 999px;
+  border-bottom: 3px solid transparent;
   color: var(--text-dim);
-  padding: 0.5rem 1.25rem;
-  font-size: 0.85rem;
+  padding: 0.85rem 0.5rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.tab-nav-btn:hover { color: var(--text); }
-.tab-nav-btn.active { background: var(--accent); color: white; }
+.tab-nav-btn .icon { width: 1.2em; height: 1.2em; }
+.tab-nav-btn:hover { color: var(--text); background: rgba(79, 140, 255, 0.06); }
+.tab-nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-@media (max-width: 500px) {
-  .tab-nav-inner { width: 100%; }
-  .tab-nav-btn { flex: 1; padding-inline: 0.5rem; }
-}
 @media (max-width: 360px) {
-  .tab-nav-btn { font-size: 0.75rem; padding-inline: 0.3rem; }
+  .tab-nav-btn { font-size: 0.78rem; gap: 0.35rem; padding-inline: 0.25rem; }
 }
 
 /* ---- Continuous ping tab ---- */
