@@ -317,6 +317,29 @@ body {
 .mini-stat-value { font-size: 1.1rem; font-weight: 700; color: var(--text); }
 .mini-stat-unit { font-size: 0.75rem; }
 
+/* ---- Server preference (which M-Lab server the main test runs
+   against) — see #serverPrefSelect in index.html / locateNdt7Server()
+   in speedtest.js ---- */
+.server-pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+.server-pref-select {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+}
+
 /* ---- Gauge + ISP/location row ---- */
 .gauge-row {
   display: flex;

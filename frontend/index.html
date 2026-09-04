@@ -124,6 +124,23 @@
         </div>
       </div>
 
+      <!-- Which M-Lab server the test runs against — "خودکار" (default)
+           lets M-Lab's locate service pick whatever's nearest by
+           network path (not always Europe — see README); picking a
+           country asks for that country specifically (falls back to
+           "خودکار" automatically if none is healthy right now — see
+           locateNdt7Server() in speedtest.js). -->
+      <div class="server-pref-row">
+        <label for="serverPrefSelect" class="server-pref-label" data-i18n="server.label">سرور تست</label>
+        <select id="serverPrefSelect" class="server-pref-select">
+          <option value="" data-i18n="server.auto">خودکار (نزدیک‌ترین)</option>
+          <option value="DE" data-i18n="server.de">آلمان</option>
+          <option value="NL" data-i18n="server.nl">هلند</option>
+          <option value="FR" data-i18n="server.fr">فرانسه</option>
+          <option value="GB" data-i18n="server.gb">انگلستان</option>
+        </select>
+      </div>
+
       <div class="gauge-row">
         <div class="side-info" id="ispInfo">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1" stroke-linecap="round"/></svg>
