@@ -8,6 +8,12 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/netpulse.db"
 
+    # When false (the production default), disables the interactive
+    # Swagger/ReDoc docs and the raw OpenAPI schema — no reason to
+    # expose the full API surface publicly on a deployed instance.
+    # Set NETPULSE_DEBUG=true locally if you want them back.
+    debug: bool = False
+
     # Ping test: how many round trips to average for latency/jitter.
     ping_samples: int = 10
 

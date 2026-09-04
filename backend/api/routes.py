@@ -12,6 +12,7 @@ from typing import Literal
 
 import httpx
 from fastapi import APIRouter, Depends, Query, Request
+from slowapi import Limiter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from starlette.responses import StreamingResponse
@@ -23,6 +24,37 @@ from backend.db.models import SpeedtestLog
 router = APIRouter(prefix="/api")
 
 RangeParam = Literal["day", "week"]
+
+
+def _extract_client_ip(request: Request) -> str | None:
+    # Render (and most PaaS reverse proxies) put the real visitor IP in
+    # X-Forwarded-For, not request.client.host — that's the proxy's own
+    # address. X-Forwarded-For can be a comma-separated chain if there
+    # were multiple hops; the first entry is the original client.
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
+def _limiter_key(request: Request) -> str:
+    """Rate-limit by the real client IP, not the reverse proxy's — reuses
+    _extract_client_ip above; without it, every visitor behind the same
+    proxy (i.e. everyone, once this is deployed behind Caddy/nginx)
+    would share one rate-limit bucket."""
+    return _extract_client_ip(request) or "unknown"
+
+
+# One shared limiter for the whole API. Limits below are deliberately
+# generous, not tight — a single legitimate test run already makes a
+# real burst of requests (4 parallel download streams, dozens of
+# upload-chunk POSTs within the 8s test window, ping every ~300ms
+# during the continuous-ping loop), so these are sized to comfortably
+# clear normal usage while still capping a script hammering the
+# bandwidth-heavy endpoints continuously. Applied per endpoint below,
+# not globally, since different endpoints have very different normal
+# call rates.
+limiter = Limiter(key_func=_limiter_key)
 
 # One chunk of random bytes, reused (not regenerated) across a whole
 # download response — the client is timing raw transfer throughput, not
@@ -37,24 +69,15 @@ def _range_start(range_: RangeParam) -> datetime:
 
 
 @router.get("/speedtest/ping")
-def speedtest_ping():
+@limiter.limit("180/minute")
+def speedtest_ping(request: Request):
     """Round-trip target for the client's latency/jitter measurement —
     deliberately does nothing but return immediately."""
     return {"pong": True}
 
 
-def _extract_client_ip(request: Request) -> str | None:
-    # Render (and most PaaS reverse proxies) put the real visitor IP in
-    # X-Forwarded-For, not request.client.host — that's the proxy's own
-    # address. X-Forwarded-For can be a comma-separated chain if there
-    # were multiple hops; the first entry is the original client.
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else None
-
-
 @router.get("/speedtest/client-info")
+@limiter.limit("20/minute")
 async def speedtest_client_info(request: Request):
     """ISP name + city/country for the display around the GO button —
     looked up by IP via ip-api.com's free tier (no key required, ~45
@@ -90,7 +113,8 @@ async def speedtest_client_info(request: Request):
 
 
 @router.get("/speedtest/download")
-def speedtest_download(bytes: int = Query(default=None, ge=1)):
+@limiter.limit("60/minute")
+def speedtest_download(request: Request, bytes: int = Query(default=None, ge=1)):
     """Streams `bytes` (default settings.default_download_bytes, capped
     at settings.max_download_bytes) of random data. Deliberately large —
     the client (frontend/js/speedtest.js) runs several of these in
@@ -113,6 +137,7 @@ def speedtest_download(bytes: int = Query(default=None, ge=1)):
 
 
 @router.post("/speedtest/upload")
+@limiter.limit("180/minute")
 async def speedtest_upload(request: Request):
     """Reads and discards the request body in chunks (never loads it all
     into memory at once), returns how many bytes it actually received.
@@ -128,7 +153,8 @@ async def speedtest_upload(request: Request):
 
 
 @router.post("/speedtest/result")
-def speedtest_result(payload: dict, request: Request, session: Session = Depends(get_session)):
+@limiter.limit("20/minute")
+def speedtest_result(request: Request, payload: dict, session: Session = Depends(get_session)):
     """Client submits its own computed numbers (all the actual timing
     happens client-side, against /ping, /download, /upload above) so
     they show up in history."""
@@ -168,7 +194,8 @@ def _row_to_dict(r: SpeedtestLog) -> dict:
 
 
 @router.get("/speedtest/latest")
-def speedtest_latest(session: Session = Depends(get_session)):
+@limiter.limit("60/minute")
+def speedtest_latest(request: Request, session: Session = Depends(get_session)):
     row = session.execute(
         select(SpeedtestLog).order_by(SpeedtestLog.timestamp.desc()).limit(1)
     ).scalar_one_or_none()
@@ -176,7 +203,20 @@ def speedtest_latest(session: Session = Depends(get_session)):
 
 
 @router.get("/speedtest/history")
-def speedtest_history(range: RangeParam = "day", session: Session = Depends(get_session)):
+@limiter.limit("60/minute")
+def speedtest_history(
+    request: Request,
+    # Literal["day", "week"] spelled out here instead of the RangeParam
+    # alias — with `from __future__ import annotations` (this file's
+    # first line) every annotation becomes a lazily-evaluated string,
+    # and slowapi's @limiter.limit wrapper doesn't propagate enough of
+    # this module's namespace for Pydantic to resolve the ForwardRef
+    # to RangeParam when FastAPI builds this route (fails at import
+    # time with "TypeAdapter[...] is not fully defined"). A literal
+    # inline type has nothing to resolve, so it's unaffected.
+    range: Literal["day", "week"] = "day",
+    session: Session = Depends(get_session),
+):
     since = _range_start(range)
     rows = session.execute(
         select(SpeedtestLog)
