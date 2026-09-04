@@ -63,6 +63,14 @@ button, input, select, textarea { font: inherit; }
   initial-value: 0;
 }
 
+html, body {
+  /* Belt-and-suspenders against horizontal scroll on mobile: any one
+     element that outgrows the viewport (a long ISP name, an
+     unexpectedly wide chart, etc.) would otherwise drag the whole
+     page sideways. */
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -92,6 +100,19 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+}
+
+/* On a narrow phone, brand + clock + language pill + theme toggle
+   together don't fit .topbar's width — flex items don't shrink below
+   their content's intrinsic width by default, so the row silently
+   overflowed the viewport and made the whole page horizontally
+   scrollable. Tightening spacing gets most of it back; dropping the
+   clock (purely decorative, "Ookla-style" niceness, not information
+   the user needs) reliably closes the rest. */
+@media (max-width: 500px) {
+  .topbar { padding-inline: 1rem; gap: 0.5rem; }
+  .topbar-actions { gap: 0.5rem; }
+  .now-stamp { display: none; }
 }
 
 .topbar-brand {
