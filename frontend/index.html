@@ -57,19 +57,32 @@
         </div>
       </div>
 
+      <!-- ---- Speedometer gauge: a needle dial styled after a real
+           speed-test-app gauge the user pointed at (0-1000 non-linear
+           scale — more room given to the low end, same idea as a real
+           speedometer). The arc/ticks are static SVG; only the needle
+           rotation and the digital readout below it change per test —
+           see speedToAngle()/updateGauge() in speedtest.js. ---- -->
+      <div class="speedo-wrap">
+        <svg id="speedoSvg" class="speedo-svg" viewBox="0 -12 220 202"></svg>
+        <div class="speedo-readout">
+          <span id="gaugeLiveValue" class="speedo-value">0.00</span>
+          <span class="speedo-unit">
+            <svg id="speedoUnitIcon" class="icon icon-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v14M6 12l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span id="speedoUnitLabel">Mbps</span>
+          </span>
+        </div>
+      </div>
+
       <div class="gauge-row">
         <div class="side-info" id="ispInfo">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1" stroke-linecap="round"/></svg>
           <span id="ispName" class="side-info-text">—</span>
         </div>
 
-        <div class="gauge-wrap">
-          <div id="gaugeRing" class="gauge-ring"></div>
-          <button id="runBtn" class="run-circle">
-            <span id="gaugeLiveValue" class="gauge-live-value"></span>
-            <span id="runBtnLabel">شروع تست</span>
-          </button>
-        </div>
+        <button id="runBtn" class="btn-start">
+          <span id="runBtnLabel">شروع تست</span>
+        </button>
 
         <div class="side-info" id="locationInfo">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>

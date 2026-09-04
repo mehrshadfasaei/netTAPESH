@@ -151,78 +151,65 @@ body {
   overflow-wrap: break-word;
 }
 
-.gauge-wrap {
+/* ---- Speedometer gauge (needle dial, styled after a real speed-test
+   app's gauge) ---- */
+.speedo-wrap {
   position: relative;
-  width: 190px;
-  height: 190px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto;
 }
+.speedo-svg { width: 100%; height: auto; display: block; }
+.speedo-track { fill: none; stroke: #232c42; stroke-width: 14; stroke-linecap: round; }
+.speedo-tick-major { stroke: #4a5570; stroke-width: 2; }
+.speedo-tick-minor { stroke: #313c58; stroke-width: 1; }
+.speedo-tick-label { fill: var(--text-dim); font-size: 11px; text-anchor: middle; dominant-baseline: middle; }
+.speedo-needle {
+  stroke: url(#speedoNeedleGrad);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: transform 0.2s ease-out;
+}
+.speedo-hub { fill: #cbd5e1; }
 
-/* The color ring itself: a conic-gradient (green -> amber -> red) whose
-   sweep is clipped to --pct (0 to 1, set from JS as live speed / current
-   scale max) via a hard transparent cutoff, then masked into a ring
-   shape. More speed = more of the gradient revealed = more red visible
-   — same visual language as Speedtest.net's gauge. */
-.gauge-ring {
-  --pct: 0;
+.speedo-readout {
   position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  /* Two stacked layers, not one gradient with a --pct-dependent color
-     stop: a single gradient whose color stops move with --pct compresses
-     the WHOLE green->red spectrum into however little is filled, so
-     even a slow result flashes red at its tip — wrong; slow should stay
-     green, red should only appear near the top of the scale.
-     Layer 1 (painted on top): transparent up to --pct, solid --bg from
-     --pct to 100% — a "cover" that hides everything past the current
-     value. Layer 2 (underneath): the real green->amber->red spectrum,
-     fixed, covering the whole ring. Revealing more of layer 2 as --pct
-     grows is what makes the correct, fixed-position color show through
-     progressively, instead of the color scale itself stretching. */
-  background:
-    conic-gradient(
-      from -90deg,
-      transparent 0%,
-      transparent calc(var(--pct) * 100%),
-      var(--bg) calc(var(--pct) * 100% + 0.3%),
-      var(--bg) 100%
-    ),
-    conic-gradient(from -90deg, var(--green) 0%, var(--amber) 50%, var(--red) 100%);
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 16px), #000 calc(100% - 16px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 16px), #000 calc(100% - 16px));
-  transition: --pct 0.2s linear;
-}
-
-.run-circle {
-  position: relative;
-  width: 152px;
-  height: 152px;
-  border-radius: 50%;
-  border: 3px solid var(--accent);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 1.05rem;
-  font-weight: 600;
-  cursor: pointer;
+  left: 50%;
+  bottom: 6%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.3rem;
+  gap: 0.15rem;
 }
-.run-circle:hover { background: #131a29; }
-.run-circle:disabled { cursor: default; }
-
-.gauge-live-value {
-  font-size: 1.8rem;
+.speedo-value {
+  font-size: 2.2rem;
   font-weight: 700;
-  min-height: 2.1rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
-.gauge-live-value:empty { display: none; }
-.gauge-live-value:empty + #runBtnLabel { margin-top: 0; }
+.speedo-unit {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.btn-start {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 0.6rem 2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-start:hover { background: #3f78e0; }
+.btn-start:disabled { cursor: default; opacity: 0.6; }
 
 .test-phase {
   min-height: 1.2rem;
