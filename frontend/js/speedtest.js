@@ -182,7 +182,9 @@
     return currentLang === "fa" ? "fa-IR" : "en-US";
   }
 
-  const langSelectEl = document.getElementById("langSelect");
+  const langSwitcherBtn = document.getElementById("langSwitcherBtn");
+  const langSwitcherLabelEl = document.getElementById("langSwitcherLabel");
+  const langMenuEl = document.getElementById("langMenu");
 
   function getStoredLang() {
     try {
@@ -214,8 +216,17 @@
   function applyLanguage(lang) {
     currentLang = lang;
     document.documentElement.lang = lang;
-    document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
-    langSelectEl.value = lang;
+    // Deliberately NOT toggling dir with the language — an earlier
+    // version flipped the whole page rtl/ltr per language, which
+    // physically moved every element (tabs, header controls, gauge
+    // side info, ...) to the opposite side on every switch. Per
+    // feedback, layout position should stay fixed; only the text
+    // changes. The layout stays RTL always, English text just reads
+    // right-aligned within it rather than the page mirroring.
+    langSwitcherLabelEl.textContent = t("lang.name");
+    langMenuEl.querySelectorAll(".lang-menu-item").forEach((item) => {
+      item.classList.toggle("active", item.dataset.lang === lang);
+    });
 
     document.querySelectorAll("[data-i18n]").forEach((el) => {
       el.textContent = t(el.dataset.i18n);
@@ -234,9 +245,31 @@
     loadHistory(document.querySelector('.range-toggle[data-target="history"] button.active').dataset.range);
   }
 
-  langSelectEl.addEventListener("change", () => {
-    applyLanguage(langSelectEl.value);
-    setStoredLang(langSelectEl.value);
+  function closeLangMenu() {
+    langMenuEl.hidden = true;
+    langSwitcherBtn.setAttribute("aria-expanded", "false");
+  }
+
+  langSwitcherBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const opening = langMenuEl.hidden;
+    langMenuEl.hidden = !opening;
+    langSwitcherBtn.setAttribute("aria-expanded", String(opening));
+  });
+
+  langMenuEl.querySelectorAll(".lang-menu-item").forEach((item) => {
+    item.addEventListener("click", () => {
+      applyLanguage(item.dataset.lang);
+      setStoredLang(item.dataset.lang);
+      closeLangMenu();
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!langMenuEl.hidden && !e.target.closest("#langSwitcher")) closeLangMenu();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeLangMenu();
   });
 
   const PING_SAMPLES = 10;

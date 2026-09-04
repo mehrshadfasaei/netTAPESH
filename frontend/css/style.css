@@ -99,17 +99,24 @@ body {
   white-space: nowrap;
 }
 
-/* Real fa/en switcher (see #langSelect in speedtest.js) — a native
-   <select> so picking "فارسی" or "English" directly selects that
-   language, instead of a single button that just flips to whichever
-   language isn't active. Same pill shape and height as .theme-toggle
-   next to it (2.3rem: 1.9rem content + 0.2rem padding on each side)
-   so the two header controls read as a matched pair. */
+/* Real fa/en switcher (see #langSwitcherBtn/#langMenu in speedtest.js)
+   — a custom dropdown, not a native <select> (its popup can't be
+   themed cross-browser and looked out of place), so picking "فارسی"
+   or "English" directly selects that language instead of a single
+   button that just flips to whichever language isn't active. Same
+   pill shape and height as .theme-toggle next to it (2.3rem) so the
+   two header controls read as a matched pair. */
 .lang-badge {
+  position: relative;
+  height: 2.3rem;
+  box-sizing: border-box;
+}
+.lang-switcher-btn {
   display: flex;
   align-items: center;
   gap: 0.3rem;
-  height: 2.3rem;
+  height: 100%;
+  font: inherit;
   font-size: 0.8rem;
   color: var(--text-dim);
   padding: 0 0.7rem;
@@ -117,22 +124,39 @@ body {
   border: 1px solid var(--border);
   border-radius: 999px;
   box-sizing: border-box;
-}
-.lang-badge:focus-within { border-color: var(--text-dim); }
-.lang-badge .icon { width: 1em; height: 1em; flex-shrink: 0; }
-.lang-select {
-  background: transparent;
-  border: none;
-  color: inherit;
-  font: inherit;
   cursor: pointer;
-  padding: 0;
 }
-.lang-select:focus { outline: none; }
-/* Options render with the browser's native dropdown styling (can't be
-   themed cross-browser) — only the closed-state trigger matches the
-   app's look, which is the part actually visible on the page. */
-.lang-select option { color: #1b2436; }
+.lang-switcher-btn:hover,
+.lang-switcher-btn[aria-expanded="true"] { color: var(--text); border-color: var(--text-dim); }
+.lang-switcher-chevron { width: 0.9em; height: 0.9em; transition: transform 0.15s ease; }
+.lang-switcher-btn[aria-expanded="true"] .lang-switcher-chevron { transform: rotate(180deg); }
+.lang-badge .icon { width: 1em; height: 1em; flex-shrink: 0; }
+
+.lang-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-end: 0;
+  min-width: 100%;
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 60;
+}
+.lang-menu[hidden] { display: none; }
+.lang-menu-item {
+  padding: 0.4rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.lang-menu-item:hover { background: rgba(79, 140, 255, 0.1); color: var(--text); }
+.lang-menu-item.active { color: var(--accent); font-weight: 600; }
 
 /* Dark/light toggle — a pill with two icon halves (sun/moon), the
    active side filled, same shape as the reference the user pointed
@@ -323,17 +347,28 @@ body {
   color: var(--text-dim);
 }
 
+/* Circular "GO"-style button, like a real speed-test app's — a thin
+   accent ring around a dark disc with the label centered inside,
+   instead of a pill/rectangle. Sits right below the needle dial
+   above it; the dial itself is what "becomes the gauge" once a test
+   starts (its needle sweeps live), this button only starts it. */
 .btn-start {
-  background: var(--accent);
-  color: white;
-  border: none;
-  border-radius: 999px;
-  padding: 0.6rem 2rem;
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--accent);
+  border: 3px solid var(--accent);
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.5rem;
 }
-.btn-start:hover { background: #3f78e0; }
+.btn-start:hover { background: rgba(79, 140, 255, 0.08); }
 .btn-start:disabled { cursor: default; opacity: 0.6; }
 
 .test-phase {
