@@ -47,6 +47,12 @@
 
 * { box-sizing: border-box; }
 
+/* Buttons/inputs/selects don't inherit the page font by default — browsers
+   give form controls the OS's system font instead — so without this every
+   <button> (tab labels, the شروع/start button, etc.) would render in the
+   system font while ordinary text around it correctly shows Vazirmatn. */
+button, input, select, textarea { font: inherit; }
+
 /* Lets --pct (used by .gauge-ring below) transition smoothly as a
    number instead of jumping instantly — progressive enhancement only,
    browsers without @property support just skip the animation and the
@@ -132,7 +138,6 @@ body {
   align-items: center;
   gap: 0.3rem;
   height: 100%;
-  font: inherit;
   font-size: 0.8rem;
   color: var(--text-dim);
   padding: 0 0.7rem;
