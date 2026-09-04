@@ -518,4 +518,90 @@
   resetGauge();
   loadLatest();
   loadHistory("day");
+
+  // ---- Tab nav ----
+  document.querySelectorAll(".tab-nav-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-nav-btn").forEach((b) => b.classList.toggle("active", b === btn));
+      document.querySelectorAll(".page-tab").forEach((tab) => {
+        tab.hidden = tab.id !== `tab-${btn.dataset.tab}`;
+      });
+    });
+  });
+
+  // ---- Continuous ping (like `ping -t`) ----
+  // Loops /api/speedtest/ping — an endpoint that does nothing but reply
+  // instantly — until the user stops it, logging each round trip like a
+  // terminal ping. Negligible server load: no payload either way, just
+  // an HTTP round trip, nowhere near the download/upload tests' bytes.
+  const pingLoopToggleBtn = document.getElementById("pingLoopToggleBtn");
+  const pingLogEl = document.getElementById("pingLog");
+  const pingStatsEl = document.getElementById("pingStats");
+  let pingLoopRunning = false;
+  let pingLoopSamples = [];
+  let pingLoopSeq = 0;
+
+  function appendPingLogLine(text, isError) {
+    const line = document.createElement("div");
+    line.className = "ping-log-line" + (isError ? " error" : "");
+    line.textContent = text;
+    pingLogEl.appendChild(line);
+    pingLogEl.scrollTop = pingLogEl.scrollHeight;
+  }
+
+  function renderPingStats() {
+    if (pingLoopSamples.length === 0) {
+      pingStatsEl.textContent = "";
+      return;
+    }
+    const min = Math.min(...pingLoopSamples);
+    const max = Math.max(...pingLoopSamples);
+    const avg = pingLoopSamples.reduce((a, b) => a + b, 0) / pingLoopSamples.length;
+    pingStatsEl.textContent =
+      `Packets: Sent = ${pingLoopSeq}, Received = ${pingLoopSamples.length}\n` +
+      `Approximate round trip times in milli-seconds:\n` +
+      `    Minimum = ${min.toFixed(0)}ms, Maximum = ${max.toFixed(0)}ms, Average = ${avg.toFixed(1)}ms`;
+  }
+
+  async function pingLoopStep() {
+    pingLoopSeq++;
+    const t0 = performance.now();
+    try {
+      const res = await fetch("/api/speedtest/ping", { cache: "no-store" });
+      const elapsed = performance.now() - t0;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      pingLoopSamples.push(elapsed);
+      appendPingLogLine(`Reply from ${location.host}: seq=${pingLoopSeq} time=${elapsed.toFixed(0)}ms`);
+    } catch (e) {
+      appendPingLogLine(`Request timed out (seq=${pingLoopSeq})`, true);
+    }
+    renderPingStats();
+  }
+
+  async function runPingLoop() {
+    while (pingLoopRunning) {
+      await pingLoopStep();
+      // A short pause between pings, like real ping tools — otherwise
+      // this would fire requests as fast as the network round trip
+      // allows, which is unnecessary log spam more than useful signal.
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+
+  pingLoopToggleBtn.addEventListener("click", () => {
+    if (pingLoopRunning) {
+      pingLoopRunning = false;
+      pingLoopToggleBtn.textContent = "شروع";
+      pingLoopToggleBtn.classList.remove("running");
+      return;
+    }
+    pingLoopRunning = true;
+    pingLoopSamples = [];
+    pingLoopSeq = 0;
+    pingLogEl.textContent = "";
+    pingStatsEl.textContent = "";
+    pingLoopToggleBtn.textContent = "توقف";
+    pingLoopToggleBtn.classList.add("running");
+    runPingLoop();
+  });
 })();
