@@ -1,23 +1,25 @@
 /**
- * Client-side speed test against this server's own /api/speedtest/*
- * endpoints. Follows the same methodology real speed test services use
- * (Speedtest.net/fast.com), not a naive single-request timing:
+ * The main speed test (the گیج/gauge tab) runs against M-Lab's free,
+ * open NDT7 measurement network (see /js/vendor/ndt7/), not this app's
+ * own backend — deliberate, not an oversight: for an Iranian user this
+ * app's own /api/speedtest/* endpoints only measure the connection to
+ * wherever THIS app happens to be hosted, which is meaningless once
+ * that host is inside Iran too. Testing against M-Lab instead measures
+ * actual international connection quality regardless of where nettapesh
+ * itself is hosted, and doesn't depend on this app's own backend being
+ * awake/reachable (relevant on a free-tier host that sleeps).
  *
- *  1. Ping measured *before* the load test, via several sequential
- *     round trips to an endpoint that does nothing — measuring latency
- *     while the link is idle, not while it's saturated by the load test.
- *  2. Download/upload use several PARALLEL connections (a single TCP
- *     stream often can't saturate a fast link — window scaling and
- *     congestion control limit one stream's throughput well below the
- *     link's real capacity).
- *  3. Tests are DURATION-based, not size-based: run for a fixed window
- *     and see how many bytes moved, rather than requesting N bytes and
- *     waiting for them to finish (which either finishes almost
- *     instantly on a fast link, measuring nothing meaningful, or drags
- *     on forever on a slow one).
- *  4. The first second of each test is discarded from the throughput
- *     calculation — TCP's slow-start ramp means early throughput
- *     under-reports the link's steady-state speed.
+ * M-Lab is a public, non-profit measurement platform — by using it,
+ * results (test metrics + client IP) become part of M-Lab's open
+ * dataset; see https://www.measurementlab.net/data-policy/. It also
+ * picks the "nearest" available server by network path, not
+ * necessarily one in Europe specifically (could be Middle East,
+ * Turkey, etc., depending on what's closest to the tester).
+ *
+ * The continuous-ping tab (a separate, unrelated feature — see
+ * "Continuous ping" below) still measures against this app's own
+ * backend on purpose: it's testing the user's connection to nettapesh
+ * ITSELF, not international quality.
  */
 (function () {
   // ---- Dark/light theme toggle ----
@@ -114,7 +116,7 @@
       "quality.gaming": "گیم آنلاین",
       "quality.streaming": "استریم ویدیو",
       "quality.videocall": "تماس تصویری",
-      "testing.ping": "در حال تست پینگ…",
+      "testing.connecting": "در حال پیدا کردن سرور…",
       "testing.download": "در حال تست دانلود…",
       "testing.upload": "در حال تست آپلود…",
       "result.done": "تست در {date} انجام شد",
@@ -166,7 +168,7 @@
       "quality.gaming": "Online Gaming",
       "quality.streaming": "Video Streaming",
       "quality.videocall": "Video Chat",
-      "testing.ping": "Testing ping…",
+      "testing.connecting": "Finding a server…",
       "testing.download": "Testing download…",
       "testing.upload": "Testing upload…",
       "result.done": "Test completed at {date}",
@@ -283,12 +285,6 @@
     if (e.key === "Escape") closeLangMenu();
   });
 
-  const PING_SAMPLES = 10;
-  const PARALLEL_CONNECTIONS = 4;
-  const TEST_DURATION_MS = 8000;
-  const WARMUP_MS = 1000;
-  const UPDATE_INTERVAL_MS = 200;
-
   const runBtn = document.getElementById("runBtn");
   const runBtnLabel = document.getElementById("runBtnLabel");
   const testPhaseEl = document.getElementById("testPhase");
@@ -400,8 +396,10 @@
   function showResultsOverlay(result) {
     resDown.textContent = formatSpeed(result.download_mbps);
     resUp.textContent = formatSpeed(result.upload_mbps);
-    resPing.textContent = result.ping_ms.toFixed(0);
-    resJitter.textContent = result.jitter_ms.toFixed(1);
+    // ping_ms/jitter_ms can be null — NDT7 (see runNdt7Test()) doesn't
+    // always yield a readable server RTT.
+    resPing.textContent = result.ping_ms != null ? result.ping_ms.toFixed(0) : "—";
+    resJitter.textContent = result.jitter_ms != null ? result.jitter_ms.toFixed(1) : "—";
     resIsp.textContent = clientInfo.isp || "—";
     resIp.textContent = clientInfo.ip || "—";
     resLocation.textContent = clientInfo.location || "—";
@@ -409,8 +407,11 @@
 
     resultsQualityRow.innerHTML = QUALITY_CATEGORIES.map((cat) => {
       const score = cat.score({
-        ping: result.ping_ms,
-        jitter: result.jitter_ms,
+        // Unknown ping/jitter treated as conservatively bad, not as 0 —
+        // `null > 150` is false in JS, which would otherwise silently
+        // score a missing reading as perfect latency instead of unknown.
+        ping: result.ping_ms ?? 9999,
+        jitter: result.jitter_ms ?? 9999,
         download: result.download_mbps,
         upload: result.upload_mbps,
       });
@@ -622,140 +623,93 @@
     rUp.textContent = formatSpeed(lastUploadMbps);
   });
 
-  // ---- Ping (sequential, before any load on the link) ----
-  async function measurePing() {
-    const samples = [];
-    for (let i = 0; i < PING_SAMPLES; i++) {
-      const t0 = performance.now();
-      await fetch("/api/speedtest/ping", { cache: "no-store" });
-      samples.push(performance.now() - t0);
-    }
-    samples.sort((a, b) => a - b);
-    const median = samples[Math.floor(samples.length / 2)];
-    const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
-    const jitter = samples.reduce((sum, s) => sum + Math.abs(s - avg), 0) / samples.length;
-    return { ping_ms: median, jitter_ms: jitter };
+  // ---- Main speed test: M-Lab NDT7 (see module docstring for why) ----
+  // Worker files are served as plain static files (not bundled), so
+  // `new Worker(...)` inside ndt7.js needs absolute paths to find them
+  // regardless of what page/path this script itself runs from.
+  const NDT7_DOWNLOAD_WORKER = "/js/vendor/ndt7/ndt7-download-worker.js";
+  const NDT7_UPLOAD_WORKER = "/js/vendor/ndt7/ndt7-upload-worker.js";
+
+  // NDT7 has no dedicated idle-ping phase like this app's old self-hosted
+  // test did — the closest equivalent is TCPInfo.RTT (smoothed round-trip
+  // time, microseconds) reported periodically by the SERVER during the
+  // download phase. Not verified against a live M-Lab server from this
+  // dev environment (no network egress here) — if a future ndt-server
+  // response shapes this differently, this just yields no ping/jitter
+  // reading (null) rather than a wrong one.
+  function extractRttMs(serverData) {
+    const rttUs = serverData && serverData.TCPInfo && serverData.TCPInfo.RTT;
+    return typeof rttUs === "number" ? rttUs / 1000 : null;
   }
 
-  /**
-   * Runs `workerFn` on PARALLEL_CONNECTIONS lanes for TEST_DURATION_MS,
-   * calling `onBytes(n)` from any lane whenever it moves n more bytes,
-   * and `onTick()` roughly every UPDATE_INTERVAL_MS with the live
-   * warmup-adjusted Mbps so far. Returns the final Mbps, computed only
-   * from bytes moved after WARMUP_MS (see module docstring point 4).
-   */
-  async function runParallelTest(workerFn, onTick) {
-    let totalBytes = 0;
-    let bytesAtWarmup = null;
-    const t0 = performance.now();
-    const controller = new AbortController();
-
-    const tickTimer = setInterval(() => {
-      const elapsedMs = performance.now() - t0;
-      if (bytesAtWarmup === null && elapsedMs >= WARMUP_MS) {
-        bytesAtWarmup = totalBytes;
-      }
-      if (bytesAtWarmup !== null) {
-        const steadySec = (elapsedMs - WARMUP_MS) / 1000;
-        onTick(mbps(totalBytes - bytesAtWarmup, steadySec));
-      }
-    }, UPDATE_INTERVAL_MS);
-
-    const abortTimer = setTimeout(() => controller.abort(), TEST_DURATION_MS);
-
-    const lanes = Array.from({ length: PARALLEL_CONNECTIONS }, () =>
-      workerFn(controller.signal, (n) => {
-        totalBytes += n;
-      })
-    );
-    await Promise.allSettled(lanes);
-
-    clearInterval(tickTimer);
-    clearTimeout(abortTimer);
-
-    const totalElapsedMs = performance.now() - t0;
-    if (bytesAtWarmup === null) {
-      // Test ended before warmup elapsed (very slow link, or aborted
-      // early) — fall back to the whole window rather than reporting 0.
-      return mbps(totalBytes, totalElapsedMs / 1000);
-    }
-    const steadySec = (totalElapsedMs - WARMUP_MS) / 1000;
-    return mbps(totalBytes - bytesAtWarmup, steadySec);
-  }
-
-  // ---- Download: N parallel streams, each requesting far more than
-  // could be consumed in TEST_DURATION_MS, aborted when time's up ----
-  async function downloadLane(signal, onBytes) {
-    try {
-      const res = await fetch("/api/speedtest/download", { signal, cache: "no-store" });
-      const reader = res.body.getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        onBytes(value.length);
-      }
-    } catch (e) {
-      // aborted when the test window ended — expected, not an error
-    }
-  }
-
-  function measureDownload() {
-    return runParallelTest(downloadLane, (v) => setDownloadDisplay(v, true));
-  }
-
-  // ---- Upload: N parallel lanes, each looping fixed-size chunk POSTs
-  // (not one giant body — keeps browser memory bounded) until aborted.
-  //
-  // Uses XMLHttpRequest, not fetch — deliberately. An earlier version
-  // used fetch() and counted a chunk as "sent" only once the whole POST
-  // resolved. That's fine on a fast link, but on a slow one (say a few
-  // Mbps upload — common, not an edge case) a single 4 MB chunk can take
-  // longer than the entire test window to finish, so onBytes() never
-  // fires even once and the result comes back as a flat 0 Mbps — this
-  // is the real bug a report of "upload shows 0" turned out to be.
-  // XHR's upload.onprogress fires incrementally as bytes actually go
-  // out over the wire, the same way the download side already tracks
-  // partial progress via its stream reader, so throughput is measured
-  // correctly regardless of whether any single chunk ever completes
-  // before the window ends. ----
-  const UPLOAD_CHUNK_BYTES = 4_000_000;
-  const _uploadBuffer = new Uint8Array(UPLOAD_CHUNK_BYTES);
-
-  function xhrUploadOnce(signal, onBytes) {
+  function runNdt7Test() {
     return new Promise((resolve, reject) => {
-      if (signal.aborted) {
-        reject(new DOMException("aborted", "AbortError"));
-        return;
-      }
-      const xhr = new XMLHttpRequest();
-      let lastLoaded = 0;
-      xhr.open("POST", "/api/speedtest/upload");
-      xhr.upload.onprogress = (e) => {
-        onBytes(e.loaded - lastLoaded);
-        lastLoaded = e.loaded;
-      };
-      xhr.onload = () => resolve();
-      xhr.onerror = () => reject(new Error("upload network error"));
-      xhr.onabort = () => reject(new DOMException("aborted", "AbortError"));
-      const onSignalAbort = () => xhr.abort();
-      signal.addEventListener("abort", onSignalAbort, { once: true });
-      xhr.send(_uploadBuffer);
+      const rttSamples = [];
+      let downloadMbps = null;
+      let uploadMbps = null;
+      let sawDownloadStart = false;
+
+      window.ndt7
+        .test(
+          {
+            userAcceptedDataPolicy: true,
+            metadata: { client_name: "nettapesh", client_version: "1.0" },
+            downloadworkerfile: NDT7_DOWNLOAD_WORKER,
+            uploadworkerfile: NDT7_UPLOAD_WORKER,
+          },
+          {
+            error: (msg) => reject(new Error(msg)),
+            downloadStart: () => {
+              sawDownloadStart = true;
+              setSpeedoDirection("down");
+              testPhaseEl.textContent = t("testing.download");
+            },
+            downloadMeasurement: ({ Source, Data }) => {
+              if (Source === "client") {
+                setDownloadDisplay(Data.MeanClientMbps, true);
+                return;
+              }
+              const rtt = extractRttMs(Data);
+              if (rtt == null) return;
+              rttSamples.push(rtt);
+              rPing.textContent = rtt.toFixed(0);
+            },
+            downloadComplete: ({ LastClientMeasurement }) => {
+              downloadMbps = (LastClientMeasurement && LastClientMeasurement.MeanClientMbps) ?? null;
+            },
+            uploadStart: () => {
+              resetGauge(); // fresh scale for upload — often a very different range than download
+              setSpeedoDirection("up");
+              testPhaseEl.textContent = t("testing.upload");
+            },
+            uploadMeasurement: ({ Source, Data }) => {
+              if (Source === "client") setUploadDisplay(Data.MeanClientMbps, true);
+            },
+            uploadComplete: ({ LastClientMeasurement }) => {
+              uploadMbps = (LastClientMeasurement && LastClientMeasurement.MeanClientMbps) ?? null;
+            },
+          }
+        )
+        .then((code) => {
+          if (code !== 0 || !sawDownloadStart) {
+            reject(new Error(`ndt7 test did not complete (code ${code})`));
+            return;
+          }
+          let ping_ms = null;
+          let jitter_ms = null;
+          if (rttSamples.length > 0) {
+            // First sample (closest to connection start, before buffers
+            // fill up) stands in for "idle" ping; spread across all
+            // samples for jitter — same averaging shape the old
+            // sequential-ping code used, just fed from different data.
+            ping_ms = rttSamples[0];
+            const avg = rttSamples.reduce((a, b) => a + b, 0) / rttSamples.length;
+            jitter_ms = rttSamples.reduce((sum, s) => sum + Math.abs(s - avg), 0) / rttSamples.length;
+          }
+          resolve({ ping_ms, jitter_ms, download_mbps: downloadMbps, upload_mbps: uploadMbps });
+        })
+        .catch(reject);
     });
-  }
-
-  async function uploadLane(signal, onBytes) {
-    try {
-      while (!signal.aborted) {
-        await xhrUploadOnce(signal, onBytes);
-      }
-    } catch (e) {
-      // aborted mid-chunk — bytes already sent were counted incrementally
-      // via onprogress above, so nothing is lost by the abort itself
-    }
-  }
-
-  function measureUpload() {
-    return runParallelTest(uploadLane, (v) => setUploadDisplay(v, true));
   }
 
   async function saveResult(result) {
@@ -782,20 +736,11 @@
     resetGauge();
 
     try {
-      testPhaseEl.textContent = t("testing.ping");
-      const { ping_ms, jitter_ms } = await measurePing();
-      rPing.textContent = ping_ms.toFixed(0);
-      rJitter.textContent = jitter_ms.toFixed(1);
-
-      setSpeedoDirection("down");
-      testPhaseEl.textContent = t("testing.download");
-      const download_mbps = await measureDownload();
+      testPhaseEl.textContent = t("testing.connecting");
+      const { ping_ms, jitter_ms, download_mbps, upload_mbps } = await runNdt7Test();
+      rPing.textContent = ping_ms != null ? ping_ms.toFixed(0) : "—";
+      rJitter.textContent = jitter_ms != null ? jitter_ms.toFixed(1) : "—";
       setDownloadDisplay(download_mbps);
-
-      resetGauge(); // fresh scale for upload — often a very different range than download
-      setSpeedoDirection("up");
-      testPhaseEl.textContent = t("testing.upload");
-      const upload_mbps = await measureUpload();
       setUploadDisplay(upload_mbps);
 
       testPhaseEl.textContent = "";
