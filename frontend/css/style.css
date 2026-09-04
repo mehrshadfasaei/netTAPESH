@@ -375,6 +375,11 @@ body {
 }
 .btn-start:hover { background: rgba(79, 140, 255, 0.08); }
 .btn-start:disabled { cursor: default; opacity: 0.6; }
+/* Same specificity as .btn-start above ([hidden] vs .btn-start), so
+   without this the "display: flex" rule wins and runBtn.hidden = true
+   (set once a test completes) has no visible effect — same class of
+   bug the results overlay and a couple of others already had. */
+.btn-start[hidden] { display: none; }
 
 /* The results overlay's own start-another-test button — same style,
    just back at the size .btn-start was before it grew above. */
@@ -383,7 +388,7 @@ body {
   height: 104px;
   font-size: 0.95rem;
   border-width: 3px;
-  margin: 1.5rem auto 0;
+  margin: 0.5rem auto 1.5rem;
 }
 
 .test-phase {
