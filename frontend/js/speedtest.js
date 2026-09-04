@@ -290,6 +290,7 @@
   const unitToggle = document.getElementById("unitToggle");
   const resultMetaEl = document.getElementById("resultMeta");
   const gaugeLiveValue = document.getElementById("gaugeLiveValue");
+  const speedoWrapEl = document.getElementById("speedoWrap");
   const nowStampEl = document.getElementById("nowStamp");
   const ispNameEl = document.getElementById("ispName");
   const locationNameEl = document.getElementById("locationName");
@@ -748,6 +749,7 @@
   }
 
   async function runTest() {
+    speedoWrapEl.hidden = false; // reveal the dial now that a test is actually running
     runBtn.disabled = true;
     rPing.textContent = "—";
     rJitter.textContent = "—";
