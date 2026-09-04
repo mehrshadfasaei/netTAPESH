@@ -42,6 +42,17 @@
   const nowStampEl = document.getElementById("nowStamp");
   const ispNameEl = document.getElementById("ispName");
   const locationNameEl = document.getElementById("locationName");
+  const resultsOverlay = document.getElementById("resultsOverlay");
+  const resultsCloseBtn = document.getElementById("resultsCloseBtn");
+  const resDown = document.getElementById("resDown");
+  const resUp = document.getElementById("resUp");
+  const resPing = document.getElementById("resPing");
+  const resJitter = document.getElementById("resJitter");
+  const resIsp = document.getElementById("resIsp");
+  const resIp = document.getElementById("resIp");
+  const resLocation = document.getElementById("resLocation");
+  const resultsQualityRow = document.getElementById("resultsQualityRow");
+  const resultsTimestampEl = document.getElementById("resultsTimestamp");
 
   // ---- Clock (top-right timestamp, like Ookla's) ----
   function updateNowStamp() {
@@ -55,10 +66,16 @@
 
   // ---- ISP / location (fetched once — by IP, server-side, see
   // backend/api/routes.py speedtest_client_info) ----
+  // Cached in module scope (not just written into the DOM) because the
+  // results overlay needs the same isp/location/ip values again when a
+  // test finishes, without a second round trip.
+  let clientInfo = { isp: null, location: null, ip: null };
+
   async function loadClientInfo() {
     try {
       const res = await fetch("/api/speedtest/client-info");
       const data = await res.json();
+      clientInfo = data;
       ispNameEl.textContent = data.isp || "—";
       locationNameEl.textContent = data.location || "—";
     } catch (e) {
@@ -66,6 +83,89 @@
     }
   }
   loadClientInfo();
+
+  // ---- Results overlay (full-screen summary shown after a test
+  // finishes, styled after a real Speedtest.net results screen) ----
+  // Connection-quality "star" ratings aren't something this app can
+  // measure directly (that needs real gaming/streaming traffic, which
+  // is what Ookla's apps actually do) — this is a documented heuristic
+  // approximation from ping/jitter/download/upload, not a measured
+  // score, so it's presented as illustrative rather than authoritative.
+  const QUALITY_CATEGORIES = [
+    {
+      key: "browsing",
+      label: "وب‌گردی",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18" stroke-linecap="round"/></svg>',
+      score: ({ ping, download }) => scoreFromThresholds(download, [1, 5, 15, 30]) - (ping > 150 ? 1 : 0),
+    },
+    {
+      key: "gaming",
+      label: "گیم آنلاین",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="5"/><path d="M7 10v4M5 12h4M15.5 12h.01M18.5 10h.01" stroke-linecap="round"/></svg>',
+      score: ({ ping, jitter }) => scoreFromThresholds(150 - ping, [0, 50, 90, 120]) - (jitter > 20 ? 1 : 0),
+    },
+    {
+      key: "streaming",
+      label: "استریم ویدیو",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="15" height="14" rx="2"/><path d="M17 8l5-3v14l-5-3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      score: ({ download }) => scoreFromThresholds(download, [2, 5, 15, 25]),
+    },
+    {
+      key: "videocall",
+      label: "تماس تصویری",
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="15" height="12" rx="2"/><path d="M17 10l5-3v10l-5-3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="11" r="2.2"/></svg>',
+      score: ({ ping, jitter, upload }) => scoreFromThresholds(Math.min(upload, 100 - ping), [0, 5, 15, 25]) - (jitter > 30 ? 1 : 0),
+    },
+  ];
+
+  // Maps a value against ascending thresholds to a 1-5 dot score —
+  // below the first threshold is 1, at/above the last is 5.
+  function scoreFromThresholds(value, thresholds) {
+    let score = 1;
+    for (const t of thresholds) {
+      if (value >= t) score++;
+    }
+    return Math.max(1, Math.min(5, score));
+  }
+
+  function renderQualityDots(score) {
+    return Array.from({ length: 5 }, (_, i) =>
+      `<span class="results-quality-dot${i < score ? " filled" : ""}"></span>`
+    ).join("");
+  }
+
+  function showResultsOverlay(result) {
+    resDown.textContent = formatSpeed(result.download_mbps);
+    resUp.textContent = formatSpeed(result.upload_mbps);
+    resPing.textContent = result.ping_ms.toFixed(0);
+    resJitter.textContent = result.jitter_ms.toFixed(1);
+    resIsp.textContent = clientInfo.isp || "—";
+    resIp.textContent = clientInfo.ip || "—";
+    resLocation.textContent = clientInfo.location || "—";
+    resultsTimestampEl.textContent = `تست در ${new Date().toLocaleString("fa-IR")} انجام شد`;
+
+    resultsQualityRow.innerHTML = QUALITY_CATEGORIES.map((cat) => {
+      const score = cat.score({
+        ping: result.ping_ms,
+        jitter: result.jitter_ms,
+        download: result.download_mbps,
+        upload: result.upload_mbps,
+      });
+      return `
+        <div class="results-quality-item">
+          <span class="icon">${cat.icon}</span>
+          <span class="results-quality-label">${cat.label}</span>
+          <span class="results-quality-dots">${renderQualityDots(score)}</span>
+        </div>
+      `;
+    }).join("");
+
+    resultsOverlay.hidden = false;
+  }
+
+  resultsCloseBtn.addEventListener("click", () => {
+    resultsOverlay.hidden = true;
+  });
 
   // ---- Gauge (the colored ring around the run button) ----
   // A fixed-max LOGARITHMIC scale, not a tiered linear one: an earlier
@@ -317,6 +417,7 @@
       const result = { ping_ms, jitter_ms, download_mbps, upload_mbps };
       await saveResult(result);
       loadHistory(document.querySelector('.range-toggle[data-target="history"] button.active').dataset.range);
+      showResultsOverlay(result);
     } catch (e) {
       testPhaseEl.textContent = "";
       resultMetaEl.textContent = "خطا در اجرای تست — دوباره امتحان کن.";
