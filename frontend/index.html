@@ -11,6 +11,13 @@
        dependency at runtime. -->
   <script src="/js/vendor/chart.umd.js"></script>
   <script src="/js/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <!-- ndt7-js (Apache-2.0, https://github.com/m-lab/ndt7-js) — the main
+       speed test itself runs against M-Lab's free, globally-distributed
+       measurement network instead of this app's own backend (see
+       runTest() in speedtest.js for why: it guarantees the test measures
+       international connection quality, not a same-country result, and
+       doesn't depend on our own backend being awake/reachable). -->
+  <script src="/js/vendor/ndt7/ndt7.js"></script>
 </head>
 <body>
   <header class="topbar">

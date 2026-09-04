@@ -1,63 +1,63 @@
 # netTAPESH
 
-A self-hosted internet speed test — ping, download, and upload — built
-as a plain web page. No install, no app, no account: open the page,
-click the button, get real numbers measured against your own server.
+An internet speed test — ping, download, and upload — built as a plain
+web page. No install, no app, no account: open the page, click the
+button, get real numbers.
 
-## Why self-hosted
+## Why not just Speedtest.net / fast.com?
 
-Public speed test sites (Speedtest.net, fast.com) measure your
-connection to *their* servers, which may be far away or congested in
-ways that don't reflect your actual day-to-day connection to whatever
-you host yourself. Running your own copy means the download/upload
-servers are wherever *you* deploy this — a VPS near you, your home
-server, wherever — with the same interface people already know.
+Public speed test sites measure your connection to *their* servers,
+picked automatically as whichever is "nearest" your connection —
+usually meaning a server inside your own country. That's the right
+number for "is my ISP giving me what I pay for", but it's the wrong
+number if what you actually care about is your connection's quality to
+the outside world (international routing, undersea cables, cross-border
+peering) — which is a real, separate question for anyone testing from a
+heavily-filtered or poorly-peered country. netTAPESH's main test
+answers that second question specifically: it measures against
+[M-Lab](https://www.measurementlab.net/)'s free, open, globally
+distributed measurement network (see `frontend/js/vendor/ndt7/`) —
+M-Lab's server-selection logic still picks whatever's "nearest" by
+network path, which won't always land in Europe specifically (could be
+the Middle East, Turkey, etc.), but in practice it's consistently
+somewhere outside the tester's own country's network, which is the
+point. Because the test runs entirely in the browser against M-Lab —
+not against this app's own backend — the result doesn't depend on
+where netTAPESH itself happens to be hosted: the site can live on cheap
+in-country hosting while the numbers it reports still reflect
+international connection quality.
+
+netTAPESH is a public, non-profit measurement platform, not a private
+company's product — using it means results (metrics + client IP)
+become part of M-Lab's public open dataset (see their
+[data policy](https://www.measurementlab.net/data-policy/)) — worth
+knowing before pointing real users at it.
 
 ## How it works
 
-The server has three endpoints, and does no timing itself — all the
-actual measurement happens in the browser, following the same
-methodology real speed test services use (not naive single-request
-timing):
+**Main test** ("تست سرعت" tab): runs [ndt7](https://github.com/m-lab/ndt7-js)
+(vendored locally, not loaded from a CDN) entirely client-side against
+M-Lab's network — locates a server, then runs a ~10s download and ~10s
+upload over WebSocket, both reported live as they run. "Ping" is
+approximated from the server's periodic TCPInfo round-trip-time reports
+during the download (M-Lab has no separate idle-ping phase the way this
+app's own backend does — see below) — occasionally unavailable, in
+which case the UI shows "—" for ping/jitter rather than a made-up
+number.
 
-- `GET /api/speedtest/ping` — returns instantly. Measured *first*, via
-  10 sequential round trips while the link is idle (median = ping,
-  average deviation = jitter) — not during the download/upload tests,
-  which would inflate it with queuing delay from the load itself.
-- `GET /api/speedtest/download` — streams a large amount of random data
-  (default 300 MB, capped at 500 MB per stream — see config). The client
-  opens **4 of these in parallel** and **aborts them once an 8-second
-  test window elapses**, rather than waiting for any one to finish: a
-  single TCP stream often can't saturate a fast link (window scaling and
-  congestion control cap one stream's throughput well below the link's
-  real capacity), so real tools use several streams at once. The first
-  second of the window is discarded from the Mbps calculation — TCP's
-  slow-start ramp-up otherwise under-reports steady-state speed.
-- `POST /api/speedtest/upload` — reads and discards whatever's sent to
-  it. The client runs **4 parallel lanes**, each looping fixed-size
-  (4 MB) chunk uploads until the same 8-second window (with the same
-  1-second warm-up discount) elapses — chosen over one giant upload body
-  to keep browser memory bounded and give reasonably fine-grained timing
-  as chunks complete.
+**Continuous ping tab**: a genuinely different, separate feature — it
+deliberately tests the connection to *this app's own server*, not
+international quality, so it keeps its own backend endpoints instead:
 
-Results are optionally saved (`POST /api/speedtest/result`) so the
-dashboard can show a history chart.
+- `GET /api/speedtest/ping` — returns instantly, used both for repeated
+  round-trip timing and, in the continuous-ping tab, a rapid-fire
+  ping/download/upload loop.
+- `GET /api/speedtest/download` / `POST /api/speedtest/upload` — small,
+  fast probes sized for that loop (not the main test's methodology).
 
-## Status
-
-Built and verified end-to-end in this environment (unlike some earlier
-work in this repo's history — see git log — this doesn't depend on any
-external network access, since the "server" it's testing against *is*
-this app): ping/download/upload all measured with real timing against a
-running instance, including the 4-parallel-connection/duration-based
-download and upload methodology (simulated the exact client pattern —
-4 concurrent streams, abort after a fixed window — against a live
-server, confirmed correct byte totals and that the server stays healthy
-afterward), correct Mbps math confirmed, result persistence and history
-endpoints all working. The one thing not exercised here: real-world
-network conditions (latency, packet loss, a genuinely slow link) — every
-test above ran over localhost, where TCP behaves differently than over
-a real internet path.
+Results from the main test are optionally saved
+(`POST /api/speedtest/result`) so the dashboard can show a history
+chart.
 
 ## Running locally
 
