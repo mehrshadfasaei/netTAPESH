@@ -613,17 +613,27 @@ body {
 
 /* ---- Continuous ping tab ---- */
 .ping-loop-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   background: var(--accent);
   color: white;
   border: none;
   border-radius: 999px;
-  padding: 0.4rem 1.1rem;
-  font-size: 0.8rem;
+  padding: 0.5rem 1.3rem;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 2px 10px rgba(79, 140, 255, 0.35);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
 }
+.ping-loop-btn .icon { width: 0.9em; height: 0.9em; }
+.ping-loop-btn .ping-loop-icon-stop { display: none; }
+.ping-loop-btn.running .ping-loop-icon-play { display: none; }
+.ping-loop-btn.running .ping-loop-icon-stop { display: block; }
 .ping-loop-btn:hover { background: #3f78e0; }
-.ping-loop-btn.running { background: var(--red); }
+.ping-loop-btn:active { transform: scale(0.96); }
+.ping-loop-btn.running { background: var(--red); box-shadow: 0 2px 10px rgba(229, 83, 75, 0.35); }
 .ping-loop-btn.running:hover { background: #cc463f; }
 
 /* Live round summary — four stat tiles, filled in once at least one
@@ -670,8 +680,16 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  /* Themed scrollbar — the browser default (light gray, boxy) looked
+     out of place against this box's always-dark terminal background. */
+  scrollbar-width: thin;
+  scrollbar-color: #3a4568 #0a0e18;
 }
 .ping-log[hidden] { display: none; }
+.ping-log::-webkit-scrollbar { width: 8px; }
+.ping-log::-webkit-scrollbar-track { background: #0a0e18; border-radius: 8px; }
+.ping-log::-webkit-scrollbar-thumb { background: #3a4568; border-radius: 8px; }
+.ping-log::-webkit-scrollbar-thumb:hover { background: #4a5580; }
 
 /* Each completed round: sequence number + three colored badges
    (ping/download/upload), all on one row — replaces what used to be a

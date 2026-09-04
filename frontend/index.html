@@ -170,7 +170,11 @@
       <section class="card card-wide card-bordered">
         <div class="card-header">
           <h2 data-i18n="tab.continuousPing">تست پشت سر هم</h2>
-          <button id="pingLoopToggleBtn" class="ping-loop-btn" data-i18n="pingtab.start">شروع</button>
+          <button id="pingLoopToggleBtn" class="ping-loop-btn">
+            <svg class="icon ping-loop-icon-play" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
+            <svg class="icon ping-loop-icon-stop" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+            <span id="pingLoopBtnLabel" data-i18n="pingtab.start">شروع</span>
+          </button>
         </div>
 
         <div id="pingSummaryRow" class="ping-summary-row" hidden>
