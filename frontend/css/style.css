@@ -274,6 +274,14 @@ body {
 .unit-toggle button:last-child { border-start-end-radius: 6px; border-end-end-radius: 6px; border-inline-start: none; }
 .unit-toggle button.active { background: var(--accent); color: white; border-color: var(--accent); }
 
+.history-chart-block + .history-chart-block { margin-top: 1.5rem; }
+.history-chart-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
 @media (max-width: 500px) {
   .gauge-row { flex-direction: column; gap: 0.75rem; }
   .side-info { flex-direction: row; width: auto; }
