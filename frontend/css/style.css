@@ -99,24 +99,40 @@ body {
   white-space: nowrap;
 }
 
-/* Real fa/en switcher (see #langToggle in speedtest.js) — shows the
-   current language's name, click toggles to the other and re-renders
-   every [data-i18n] string on the page. */
+/* Real fa/en switcher (see #langSelect in speedtest.js) — a native
+   <select> so picking "فارسی" or "English" directly selects that
+   language, instead of a single button that just flips to whichever
+   language isn't active. Same pill shape and height as .theme-toggle
+   next to it (2.3rem: 1.9rem content + 0.2rem padding on each side)
+   so the two header controls read as a matched pair. */
 .lang-badge {
   display: flex;
   align-items: center;
   gap: 0.3rem;
+  height: 2.3rem;
   font-size: 0.8rem;
   color: var(--text-dim);
-  padding: 0.3rem 0.6rem;
+  padding: 0 0.7rem;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 999px;
-  cursor: pointer;
-  font-family: inherit;
+  box-sizing: border-box;
 }
-.lang-badge:hover { color: var(--text); border-color: var(--text-dim); }
-.lang-badge .icon { width: 1em; height: 1em; }
+.lang-badge:focus-within { border-color: var(--text-dim); }
+.lang-badge .icon { width: 1em; height: 1em; flex-shrink: 0; }
+.lang-select {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.lang-select:focus { outline: none; }
+/* Options render with the browser's native dropdown styling (can't be
+   themed cross-browser) — only the closed-state trigger matches the
+   app's look, which is the part actually visible on the page. */
+.lang-select option { color: #1b2436; }
 
 /* Dark/light toggle — a pill with two icon halves (sun/moon), the
    active side filled, same shape as the reference the user pointed
@@ -125,6 +141,8 @@ body {
 .theme-toggle {
   display: flex;
   align-items: center;
+  height: 2.3rem;
+  box-sizing: border-box;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -326,10 +344,13 @@ body {
 
 .hint { font-size: 0.8rem; color: var(--text-dim); text-align: center; }
 
+/* Flat, not boxed — the whole page is one background color (var(--bg));
+   .card used to paint its own panel color + border, reading as a
+   separate white box floating on the page. Content areas are still
+   told apart by spacing/gap alone, not a background change. */
 .card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: transparent;
+  border: none;
   padding: 1rem 1.25rem 1.25rem;
 }
 .card-wide { width: 100%; }

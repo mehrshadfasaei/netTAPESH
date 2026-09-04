@@ -182,8 +182,7 @@
     return currentLang === "fa" ? "fa-IR" : "en-US";
   }
 
-  const langToggleBtn = document.getElementById("langToggle");
-  const langToggleLabelEl = document.getElementById("langToggleLabel");
+  const langSelectEl = document.getElementById("langSelect");
 
   function getStoredLang() {
     try {
@@ -216,7 +215,7 @@
     currentLang = lang;
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
-    langToggleLabelEl.textContent = t("lang.name");
+    langSelectEl.value = lang;
 
     document.querySelectorAll("[data-i18n]").forEach((el) => {
       el.textContent = t(el.dataset.i18n);
@@ -235,10 +234,9 @@
     loadHistory(document.querySelector('.range-toggle[data-target="history"] button.active').dataset.range);
   }
 
-  langToggleBtn.addEventListener("click", () => {
-    const next = currentLang === "fa" ? "en" : "fa";
-    applyLanguage(next);
-    setStoredLang(next);
+  langSelectEl.addEventListener("change", () => {
+    applyLanguage(langSelectEl.value);
+    setStoredLang(langSelectEl.value);
   });
 
   const PING_SAMPLES = 10;
