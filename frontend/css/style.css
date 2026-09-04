@@ -421,19 +421,27 @@ body {
   font-size: 0.8rem;
   line-height: 1.6;
   color: #b9c4de;
-  direction: ltr;
-  text-align: left;
+  /* Log lines mix Persian labels with LTR numbers/units — plain RTL
+     (matching the rest of the page) lets the browser's normal bidi
+     handling place the embedded numbers correctly, unlike forcing the
+     whole line LTR (fine when this was pure "Reply from ..." English
+     CMD-style text, wrong now that it's mostly Persian). */
+  direction: rtl;
+  text-align: right;
   white-space: pre-wrap;
 }
 .ping-log .ping-log-line.error { color: var(--red); }
+.ping-log .ping-good { color: var(--green); font-weight: 600; }
+.ping-log .ping-warn { color: var(--amber); font-weight: 600; }
+.ping-log .ping-bad { color: var(--red); font-weight: 600; }
 
 .ping-stats {
   margin-top: 0.75rem;
   font-family: "Consolas", "SFMono-Regular", Menlo, monospace;
   font-size: 0.8rem;
   color: var(--text-dim);
-  direction: ltr;
-  text-align: left;
+  direction: rtl;
+  text-align: right;
   white-space: pre-wrap;
 }
 

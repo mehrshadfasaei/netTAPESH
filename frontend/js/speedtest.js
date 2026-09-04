@@ -639,51 +639,105 @@
     });
   });
 
-  // ---- Continuous ping (like `ping -t`) ----
-  // Loops /api/speedtest/ping — an endpoint that does nothing but reply
-  // instantly — until the user stops it, logging each round trip like a
-  // terminal ping. Negligible server load: no payload either way, just
-  // an HTTP round trip, nowhere near the download/upload tests' bytes.
+  // ---- Continuous ping + mini download/upload (like `ping -t`, plus a
+  // lightweight speed reading every round) ----
+  // Each round measures three things: ping (round trip to an endpoint
+  // that does nothing but reply instantly), a small download probe, and
+  // a small upload probe — single-request timing, not the parallel
+  // duration-based methodology the main speed test uses, since the
+  // point here is a quick per-round reading repeated many times, not
+  // one maximally-accurate number. Probe sizes are deliberately small
+  // (500 KB down / 250 KB up) so a round stays quick even on a slow
+  // link and repeating this continuously doesn't add real bandwidth
+  // load — still nowhere near the main test's hundreds of MB.
+  const PING_LOOP_DOWNLOAD_BYTES = 500_000;
+  const PING_LOOP_UPLOAD_BYTES = 250_000;
+  const pingLoopUploadBuffer = new Uint8Array(PING_LOOP_UPLOAD_BYTES);
+
   const pingLoopToggleBtn = document.getElementById("pingLoopToggleBtn");
   const pingLogEl = document.getElementById("pingLog");
   const pingStatsEl = document.getElementById("pingStats");
   let pingLoopRunning = false;
-  let pingLoopSamples = [];
+  let pingLoopPingSamples = [];
+  let pingLoopDownSamples = [];
+  let pingLoopUpSamples = [];
   let pingLoopSeq = 0;
 
-  function appendPingLogLine(text, isError) {
+  // Traffic-light thresholds on ping (ms): under 100 is good, 100-400
+  // is borderline, above 400 is bad — same read as a real ping tool's
+  // "green/yellow/red" latency, just no built-in color for it.
+  function pingQualityClass(ms) {
+    if (ms < 100) return "ping-good";
+    if (ms <= 400) return "ping-warn";
+    return "ping-bad";
+  }
+
+  function appendPingLogLine(pingMs, downMbps, upMbps, isError) {
     const line = document.createElement("div");
     line.className = "ping-log-line" + (isError ? " error" : "");
-    line.textContent = text;
+    if (isError) {
+      line.textContent = `#${pingLoopSeq}  خطا در اتصال`;
+    } else {
+      const pingSpan = document.createElement("span");
+      pingSpan.className = pingQualityClass(pingMs);
+      pingSpan.textContent = `پینگ ${pingMs.toFixed(0)}ms`;
+      line.append(`#${pingLoopSeq}  `, pingSpan, `  دانلود ${downMbps.toFixed(1)} Mbps  آپلود ${upMbps.toFixed(1)} Mbps`);
+    }
     pingLogEl.appendChild(line);
     pingLogEl.scrollTop = pingLogEl.scrollHeight;
   }
 
+  function avg(arr) {
+    return arr.reduce((a, b) => a + b, 0) / arr.length;
+  }
+
   function renderPingStats() {
-    if (pingLoopSamples.length === 0) {
+    if (pingLoopPingSamples.length === 0) {
       pingStatsEl.textContent = "";
       return;
     }
-    const min = Math.min(...pingLoopSamples);
-    const max = Math.max(...pingLoopSamples);
-    const avg = pingLoopSamples.reduce((a, b) => a + b, 0) / pingLoopSamples.length;
+    const pMin = Math.min(...pingLoopPingSamples);
+    const pMax = Math.max(...pingLoopPingSamples);
     pingStatsEl.textContent =
-      `Packets: Sent = ${pingLoopSeq}, Received = ${pingLoopSamples.length}\n` +
-      `Approximate round trip times in milli-seconds:\n` +
-      `    Minimum = ${min.toFixed(0)}ms, Maximum = ${max.toFixed(0)}ms, Average = ${avg.toFixed(1)}ms`;
+      `دورها: ${pingLoopSeq}   موفق: ${pingLoopPingSamples.length}\n` +
+      `پینگ — کمینه ${pMin.toFixed(0)}ms، بیشینه ${pMax.toFixed(0)}ms، میانگین ${avg(pingLoopPingSamples).toFixed(1)}ms\n` +
+      `دانلود میانگین ${avg(pingLoopDownSamples).toFixed(1)} Mbps   آپلود میانگین ${avg(pingLoopUpSamples).toFixed(1)} Mbps`;
+  }
+
+  async function measurePingLoopDownload() {
+    const t0 = performance.now();
+    const res = await fetch(`/api/speedtest/download?bytes=${PING_LOOP_DOWNLOAD_BYTES}`, { cache: "no-store" });
+    const buf = await res.arrayBuffer();
+    return mbps(buf.byteLength, (performance.now() - t0) / 1000);
+  }
+
+  function measurePingLoopUpload() {
+    return new Promise((resolve, reject) => {
+      const t0 = performance.now();
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "/api/speedtest/upload");
+      xhr.onload = () => resolve(mbps(PING_LOOP_UPLOAD_BYTES, (performance.now() - t0) / 1000));
+      xhr.onerror = () => reject(new Error("upload failed"));
+      xhr.send(pingLoopUploadBuffer);
+    });
   }
 
   async function pingLoopStep() {
     pingLoopSeq++;
-    const t0 = performance.now();
     try {
-      const res = await fetch("/api/speedtest/ping", { cache: "no-store" });
-      const elapsed = performance.now() - t0;
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      pingLoopSamples.push(elapsed);
-      appendPingLogLine(`Reply from ${location.host}: seq=${pingLoopSeq} time=${elapsed.toFixed(0)}ms`);
+      const t0 = performance.now();
+      const pingRes = await fetch("/api/speedtest/ping", { cache: "no-store" });
+      const pingMs = performance.now() - t0;
+      if (!pingRes.ok) throw new Error(`HTTP ${pingRes.status}`);
+
+      const [downMbps, upMbps] = await Promise.all([measurePingLoopDownload(), measurePingLoopUpload()]);
+
+      pingLoopPingSamples.push(pingMs);
+      pingLoopDownSamples.push(downMbps);
+      pingLoopUpSamples.push(upMbps);
+      appendPingLogLine(pingMs, downMbps, upMbps, false);
     } catch (e) {
-      appendPingLogLine(`Request timed out (seq=${pingLoopSeq})`, true);
+      appendPingLogLine(null, null, null, true);
     }
     renderPingStats();
   }
@@ -691,10 +745,10 @@
   async function runPingLoop() {
     while (pingLoopRunning) {
       await pingLoopStep();
-      // A short pause between pings, like real ping tools — otherwise
-      // this would fire requests as fast as the network round trip
-      // allows, which is unnecessary log spam more than useful signal.
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // A short pause between rounds — each round already takes real
+      // time (the download/upload probes), this just avoids back-to-
+      // back rounds with zero breathing room between them.
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
   }
 
@@ -706,7 +760,9 @@
       return;
     }
     pingLoopRunning = true;
-    pingLoopSamples = [];
+    pingLoopPingSamples = [];
+    pingLoopDownSamples = [];
+    pingLoopUpSamples = [];
     pingLoopSeq = 0;
     pingLogEl.textContent = "";
     pingStatsEl.textContent = "";
