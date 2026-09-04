@@ -652,7 +652,11 @@ body {
 
 .ping-log {
   background: #0a0e18;
-  border: 1px solid var(--border);
+  /* A fixed border color, not var(--border) — that token is a LIGHT
+     gray in light mode, nearly invisible against this box's always-
+     dark terminal background (the log stays dark in both themes, same
+     as a real terminal), so the border effectively disappeared there. */
+  border: 1px solid #2a3350;
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
   height: 320px;
