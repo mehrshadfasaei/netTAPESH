@@ -656,34 +656,62 @@
 
   const pingLoopToggleBtn = document.getElementById("pingLoopToggleBtn");
   const pingLogEl = document.getElementById("pingLog");
-  const pingStatsEl = document.getElementById("pingStats");
+  const pingLogEmptyEl = document.getElementById("pingLogEmpty");
+  const pingSummaryRowEl = document.getElementById("pingSummaryRow");
+  const pingSummaryRoundsEl = document.getElementById("pingSummaryRounds");
+  const pingSummaryPingEl = document.getElementById("pingSummaryPing");
+  const pingSummaryDownEl = document.getElementById("pingSummaryDown");
+  const pingSummaryUpEl = document.getElementById("pingSummaryUp");
   let pingLoopRunning = false;
   let pingLoopPingSamples = [];
   let pingLoopDownSamples = [];
   let pingLoopUpSamples = [];
   let pingLoopSeq = 0;
 
-  // Traffic-light thresholds on ping (ms): under 100 is good, 100-400
-  // is borderline, above 400 is bad — same read as a real ping tool's
-  // "green/yellow/red" latency, just no built-in color for it.
+  // Traffic-light thresholds — ping in ms (lower is better), down/up in
+  // Mbps (higher is better). Same "good/warn/bad" 3-tier read as a real
+  // ping tool's colored latency, extended here to the two speed probes
+  // too. The Mbps cutoffs are a rough general-purpose heuristic (fine
+  // for browsing/streaming at the low end, clearly fast above it), not
+  // measured against any particular use case.
   function pingQualityClass(ms) {
     if (ms < 100) return "ping-good";
     if (ms <= 400) return "ping-warn";
     return "ping-bad";
   }
+  function speedQualityClass(mbpsValue) {
+    if (mbpsValue >= 25) return "ping-good";
+    if (mbpsValue >= 5) return "ping-warn";
+    return "ping-bad";
+  }
+
+  function pingBadge(text, cls) {
+    const span = document.createElement("span");
+    span.className = "ping-badge " + cls;
+    span.textContent = text;
+    return span;
+  }
 
   function appendPingLogLine(pingMs, downMbps, upMbps, isError) {
-    const line = document.createElement("div");
-    line.className = "ping-log-line" + (isError ? " error" : "");
+    pingLogEmptyEl.hidden = true;
+    pingLogEl.hidden = false;
+
+    const row = document.createElement("div");
+    row.className = "ping-row" + (isError ? " error" : "");
     if (isError) {
-      line.textContent = `#${pingLoopSeq}  خطا در اتصال`;
+      row.innerHTML = `<span class="ping-row-seq">#${pingLoopSeq}</span><span class="ping-row-error">خطا در اتصال</span>`;
     } else {
-      const pingSpan = document.createElement("span");
-      pingSpan.className = pingQualityClass(pingMs);
-      pingSpan.textContent = `پینگ ${pingMs.toFixed(0)}ms`;
-      line.append(`#${pingLoopSeq}  `, pingSpan, `  دانلود ${downMbps.toFixed(1)} Mbps  آپلود ${upMbps.toFixed(1)} Mbps`);
+      const seq = document.createElement("span");
+      seq.className = "ping-row-seq";
+      seq.textContent = `#${pingLoopSeq}`;
+      row.append(
+        seq,
+        pingBadge(`پینگ ${pingMs.toFixed(0)}ms`, pingQualityClass(pingMs)),
+        pingBadge(`↓ ${downMbps.toFixed(1)} Mbps`, speedQualityClass(downMbps)),
+        pingBadge(`↑ ${upMbps.toFixed(1)} Mbps`, speedQualityClass(upMbps))
+      );
     }
-    pingLogEl.appendChild(line);
+    pingLogEl.appendChild(row);
     pingLogEl.scrollTop = pingLogEl.scrollHeight;
   }
 
@@ -692,16 +720,12 @@
   }
 
   function renderPingStats() {
-    if (pingLoopPingSamples.length === 0) {
-      pingStatsEl.textContent = "";
-      return;
-    }
-    const pMin = Math.min(...pingLoopPingSamples);
-    const pMax = Math.max(...pingLoopPingSamples);
-    pingStatsEl.textContent =
-      `دورها: ${pingLoopSeq}   موفق: ${pingLoopPingSamples.length}\n` +
-      `پینگ — کمینه ${pMin.toFixed(0)}ms، بیشینه ${pMax.toFixed(0)}ms، میانگین ${avg(pingLoopPingSamples).toFixed(1)}ms\n` +
-      `دانلود میانگین ${avg(pingLoopDownSamples).toFixed(1)} Mbps   آپلود میانگین ${avg(pingLoopUpSamples).toFixed(1)} Mbps`;
+    if (pingLoopPingSamples.length === 0) return;
+    pingSummaryRowEl.hidden = false;
+    pingSummaryRoundsEl.textContent = String(pingLoopSeq).replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[d]);
+    pingSummaryPingEl.textContent = `${avg(pingLoopPingSamples).toFixed(0)}ms`;
+    pingSummaryDownEl.textContent = `${avg(pingLoopDownSamples).toFixed(1)} Mbps`;
+    pingSummaryUpEl.textContent = `${avg(pingLoopUpSamples).toFixed(1)} Mbps`;
   }
 
   async function measurePingLoopDownload() {
@@ -765,7 +789,9 @@
     pingLoopUpSamples = [];
     pingLoopSeq = 0;
     pingLogEl.textContent = "";
-    pingStatsEl.textContent = "";
+    pingLogEl.hidden = true;
+    pingLogEmptyEl.hidden = false;
+    pingSummaryRowEl.hidden = true;
     pingLoopToggleBtn.textContent = "توقف";
     pingLoopToggleBtn.classList.add("running");
     runPingLoop();
