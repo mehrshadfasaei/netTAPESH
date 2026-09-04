@@ -37,7 +37,6 @@
   const rUpUnit = document.getElementById("rUpUnit");
   const unitToggle = document.getElementById("unitToggle");
   const resultMetaEl = document.getElementById("resultMeta");
-  const gaugeRing = document.getElementById("gaugeRing");
   const gaugeLiveValue = document.getElementById("gaugeLiveValue");
   const nowStampEl = document.getElementById("nowStamp");
   const ispNameEl = document.getElementById("ispName");
@@ -167,35 +166,146 @@
     resultsOverlay.hidden = true;
   });
 
-  // ---- Gauge (the colored ring around the run button) ----
-  // A fixed-max LOGARITHMIC scale, not a tiered linear one: an earlier
-  // version re-tiered its "full scale" (10 -> 25 -> 50 -> ... Mbps) as
-  // the live value approached the current tier's max, which made the
-  // ring visibly snap backward every time it re-tiered (e.g. 85% -> 37%
-  // the instant the scale jumped from the 10 to the 25 Mbps tier) —
-  // jarring, and exactly what read as "buggy". A single fixed max with a
-  // log mapping is monotonic: the ring only ever fills forward as speed
-  // increases, never jumps back, while still giving slow connections
-  // (a few Mbps) a readable amount of the ring instead of being crushed
-  // near zero the way a fixed LINEAR scale up to 2000 Mbps would.
-  const GAUGE_MAX_MBPS = 2000;
-  const GAUGE_LOG_MAX = Math.log10(GAUGE_MAX_MBPS + 1);
+  // ---- Speedometer gauge (needle dial) ----
+  // A non-linear tick scale, same idea as a real speedometer: equal
+  // ANGLE between ticks, unequal VALUE between them, so the low end
+  // (where most real-world results land) gets most of the dial instead
+  // of being crushed into a sliver next to a mostly-empty high end.
+  // Piecewise-linear interpolation between whichever two ticks bracket
+  // the live value maps that value to an angle — monotonic by
+  // construction (each segment only moves the needle forward), so
+  // there's no possibility of the backward "jump" a discrete auto-
+  // scaling tier system had in an earlier version.
+  const GAUGE_TICKS = [0, 5, 10, 50, 100, 250, 500, 750, 1000];
+  const GAUGE_START_DEG = -125; // needle angle at value 0 (down-left)
+  const GAUGE_END_DEG = 125; // needle angle at the top tick (down-right)
+  const SPEEDO_CENTER = { x: 110, y: 110 };
+  const SPEEDO_RADIUS = 88;
 
-  function speedToPct(mbpsValue) {
-    if (mbpsValue <= 0) return 0;
-    return Math.max(0, Math.min(Math.log10(mbpsValue + 1) / GAUGE_LOG_MAX, 1));
+  function speedToAngle(mbpsValue) {
+    const v = Math.max(0, Math.min(mbpsValue, GAUGE_TICKS[GAUGE_TICKS.length - 1]));
+    let i = 0;
+    while (i < GAUGE_TICKS.length - 2 && v > GAUGE_TICKS[i + 1]) i++;
+    const segStart = GAUGE_TICKS[i];
+    const segEnd = GAUGE_TICKS[i + 1];
+    const segFrac = segEnd > segStart ? (v - segStart) / (segEnd - segStart) : 0;
+    const idxFrac = (i + segFrac) / (GAUGE_TICKS.length - 1);
+    return GAUGE_START_DEG + idxFrac * (GAUGE_END_DEG - GAUGE_START_DEG);
+  }
+
+  // angle 0 = straight up, positive = clockwise — matches how the
+  // needle's rotate() transform is applied below.
+  function polarPoint(angleDeg, radius) {
+    const rad = (angleDeg * Math.PI) / 180;
+    return {
+      x: SPEEDO_CENTER.x + radius * Math.sin(rad),
+      y: SPEEDO_CENTER.y - radius * Math.cos(rad),
+    };
+  }
+
+  function buildSpeedoSvg() {
+    const svg = document.getElementById("speedoSvg");
+    const svgNS = "http://www.w3.org/2000/svg";
+    const el = (tag, attrs) => {
+      const node = document.createElementNS(svgNS, tag);
+      for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+      return node;
+    };
+
+    // Background track arc.
+    const start = polarPoint(GAUGE_START_DEG, SPEEDO_RADIUS);
+    const end = polarPoint(GAUGE_END_DEG, SPEEDO_RADIUS);
+    svg.appendChild(
+      el("path", {
+        class: "speedo-track",
+        d: `M ${start.x} ${start.y} A ${SPEEDO_RADIUS} ${SPEEDO_RADIUS} 0 1 1 ${end.x} ${end.y}`,
+      })
+    );
+
+    // Minor ticks — purely decorative texture between the major
+    // labeled ticks, evenly spaced by angle.
+    const MINOR_PER_SEGMENT = 4;
+    const totalMinor = (GAUGE_TICKS.length - 1) * MINOR_PER_SEGMENT;
+    for (let m = 0; m <= totalMinor; m++) {
+      if (m % MINOR_PER_SEGMENT === 0) continue; // skip where a major tick goes
+      const angle = GAUGE_START_DEG + (m / totalMinor) * (GAUGE_END_DEG - GAUGE_START_DEG);
+      const p1 = polarPoint(angle, SPEEDO_RADIUS + 11);
+      const p2 = polarPoint(angle, SPEEDO_RADIUS + 15);
+      svg.appendChild(el("line", { class: "speedo-tick-minor", x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }));
+    }
+
+    // Major ticks + number labels.
+    GAUGE_TICKS.forEach((tick, i) => {
+      const angle = GAUGE_START_DEG + (i / (GAUGE_TICKS.length - 1)) * (GAUGE_END_DEG - GAUGE_START_DEG);
+      const p1 = polarPoint(angle, SPEEDO_RADIUS + 9);
+      const p2 = polarPoint(angle, SPEEDO_RADIUS + 17);
+      svg.appendChild(el("line", { class: "speedo-tick-major", x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }));
+      const labelPos = polarPoint(angle, SPEEDO_RADIUS + 28);
+      const label = el("text", { class: "speedo-tick-label", x: labelPos.x, y: labelPos.y });
+      label.textContent = String(tick);
+      svg.appendChild(label);
+    });
+
+    // Needle gradient (defined once, referenced by the needle's stroke).
+    // gradientUnits="userSpaceOnUse" with explicit coordinates, not the
+    // default objectBoundingBox — the needle <line> is perfectly
+    // vertical before rotation (x1 === x2), so its bounding box has
+    // ZERO width, which is degenerate for objectBoundingBox units; the
+    // SVG spec says a paint server referencing a degenerate bounding
+    // box is ignored entirely, silently making the needle invisible.
+    const defs = el("defs", {});
+    const grad = el("linearGradient", {
+      id: "speedoNeedleGrad",
+      gradientUnits: "userSpaceOnUse",
+      x1: SPEEDO_CENTER.x,
+      y1: SPEEDO_CENTER.y,
+      x2: SPEEDO_CENTER.x,
+      y2: SPEEDO_CENTER.y - SPEEDO_RADIUS + 14,
+    });
+    grad.appendChild(el("stop", { offset: "0%", "stop-color": "#5b6478" }));
+    grad.appendChild(el("stop", { offset: "100%", "stop-color": "#e8ecf5" }));
+    defs.appendChild(grad);
+    svg.appendChild(defs);
+
+    // Needle — pivots around SPEEDO_CENTER via CSS transform (see
+    // .speedo-needle's transform-box/transform-origin in style.css),
+    // rotated per-frame in updateGauge()/resetGauge() below.
+    const needle = el("line", {
+      id: "speedoNeedle",
+      class: "speedo-needle",
+      x1: SPEEDO_CENTER.x,
+      y1: SPEEDO_CENTER.y,
+      x2: SPEEDO_CENTER.x,
+      y2: SPEEDO_CENTER.y - SPEEDO_RADIUS + 14,
+    });
+    svg.appendChild(needle);
+    svg.appendChild(el("circle", { class: "speedo-hub", cx: SPEEDO_CENTER.x, cy: SPEEDO_CENTER.y, r: 6 }));
+  }
+  buildSpeedoSvg();
+  const speedoNeedleEl = document.getElementById("speedoNeedle");
+  const speedoUnitIconEl = document.getElementById("speedoUnitIcon");
+  const speedoUnitLabelEl = document.getElementById("speedoUnitLabel");
+
+  function setSpeedoDirection(direction) {
+    // direction: "down" (download) or "up" (upload) — swaps the little
+    // arrow next to the unit label so the dial reads correctly for
+    // whichever phase is currently running.
+    speedoUnitIconEl.classList.toggle("icon-down", direction === "down");
+    speedoUnitIconEl.classList.toggle("icon-up", direction === "up");
+    speedoUnitIconEl.querySelector("path").setAttribute(
+      "d",
+      direction === "up" ? "M12 20V6M6 12l6-6 6 6" : "M12 4v14M6 12l6 6 6-6"
+    );
   }
 
   function resetGauge() {
-    gaugeRing.style.setProperty("--pct", "0");
-    gaugeLiveValue.textContent = "";
-    runBtnLabel.style.display = "";
+    speedoNeedleEl.style.transform = `rotate(${GAUGE_START_DEG}deg)`;
+    gaugeLiveValue.textContent = "0.00";
   }
 
   function updateGauge(mbpsValue) {
-    gaugeRing.style.setProperty("--pct", String(speedToPct(mbpsValue)));
-    gaugeLiveValue.textContent = mbpsValue.toFixed(1);
-    runBtnLabel.style.display = "none";
+    speedoNeedleEl.style.transform = `rotate(${speedToAngle(mbpsValue)}deg)`;
+    gaugeLiveValue.textContent = mbpsValue.toFixed(2);
   }
 
   function mbps(bytes, seconds) {
@@ -400,18 +510,18 @@
       rPing.textContent = ping_ms.toFixed(0);
       rJitter.textContent = jitter_ms.toFixed(1);
 
+      setSpeedoDirection("down");
       testPhaseEl.textContent = "در حال تست دانلود…";
       const download_mbps = await measureDownload();
       setDownloadDisplay(download_mbps);
 
       resetGauge(); // fresh scale for upload — often a very different range than download
+      setSpeedoDirection("up");
       testPhaseEl.textContent = "در حال تست آپلود…";
       const upload_mbps = await measureUpload();
       setUploadDisplay(upload_mbps);
 
       testPhaseEl.textContent = "";
-      runBtnLabel.style.display = "";
-      gaugeLiveValue.textContent = "";
       resultMetaEl.textContent = `تست در ${new Date().toLocaleString("fa-IR")} انجام شد`;
 
       const result = { ping_ms, jitter_ms, download_mbps, upload_mbps };
