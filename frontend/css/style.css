@@ -10,6 +10,25 @@
   --red: #e5534b;
 }
 
+/* Light mode — user-toggled (see #themeToggle in speedtest.js, stored
+   in localStorage), not tied to prefers-color-scheme. The gauge dial
+   and the continuous-ping log keep their own fixed dark colors in
+   either theme (an instrument face / a terminal reads as "always
+   dark" regardless of the surrounding page — same convention real
+   speed-test apps and code editors use), so those aren't re-themed
+   here. */
+:root[data-theme="light"] {
+  --bg: #f4f6fb;
+  --panel: #ffffff;
+  --border: #dde3f0;
+  --text: #1b2436;
+  --text-dim: #667088;
+  --accent: #3a6fe0;
+  --green: #1f9d5c;
+  --amber: #b3791f;
+  --red: #d33a32;
+}
+
 * { box-sizing: border-box; }
 
 /* Lets --pct (used by .gauge-ring below) transition smoothly as a
@@ -30,27 +49,81 @@ body {
 }
 
 .topbar {
-  padding: 1rem 1.5rem;
+  padding: 0.85rem 1.5rem;
   border-bottom: 1px solid var(--border);
-}
-
-.topbar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
+  gap: 1rem;
 }
 
-.topbar h1 {
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text);
+}
+.topbar-brand .icon { width: 1.6em; height: 1.6em; color: var(--accent); flex-shrink: 0; }
+.topbar-brand h1 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.15rem;
+  font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .now-stamp {
   font-size: 0.8rem;
   color: var(--text-dim);
   direction: ltr;
+  white-space: nowrap;
 }
+
+/* Static label, not a functional dropdown — the app only has one
+   language right now, so a working switcher would promise something
+   that isn't there. Kept in the header only because the reference
+   layout has one, styled the same as a real one would be. */
+.lang-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.lang-badge .icon { width: 1em; height: 1em; }
+
+/* Dark/light toggle — a pill with two icon halves (sun/moon), the
+   active side filled, same shape as the reference the user pointed
+   at. Wired in speedtest.js: toggles [data-theme] on <html> and
+   remembers the choice in localStorage. */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem;
+  cursor: pointer;
+}
+.theme-toggle-half {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  color: var(--text-dim);
+}
+.theme-toggle-half .icon { width: 1.1em; height: 1.1em; }
+.theme-toggle-half.active { background: var(--accent); color: white; }
 
 .page {
   max-width: 720px;
@@ -539,4 +612,56 @@ body {
   .side-info { flex-direction: row; width: auto; }
   .stat-row { gap: 1.5rem; }
   .stat-block-value { font-size: 2.2rem; }
+}
+
+/* ---- Footer ---- */
+.site-footer {
+  border-top: 1px solid var(--border);
+  margin-top: 1rem;
+}
+.footer-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+.footer-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  max-width: 340px;
+}
+.footer-brand .icon { width: 1.8em; height: 1.8em; color: var(--accent); flex-shrink: 0; }
+.footer-brand-name { font-weight: 700; color: var(--text); margin: 0 0 0.25rem; }
+.footer-brand-desc { font-size: 0.8rem; color: var(--text-dim); margin: 0; line-height: 1.6; }
+
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.footer-links a {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.footer-links a:hover { color: var(--accent); }
+.footer-links .icon { width: 1.1em; height: 1.1em; }
+
+.footer-bottom {
+  border-top: 1px solid var(--border);
+  padding: 1rem 1.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+@media (max-width: 500px) {
+  .footer-inner { flex-direction: column; }
 }
