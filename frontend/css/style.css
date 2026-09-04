@@ -29,6 +29,22 @@
   --red: #d33a32;
 }
 
+/* Vazirmatn — free (SIL Open Font License), designed for exactly this
+   app's situation: a Persian/English bilingual UI, with a proper
+   Persian typeface instead of Persian text rendered in a Latin
+   system font (Tahoma) that just happens to include Farsi glyphs.
+   Vendored locally as one variable-weight file (frontend/fonts/,
+   ~108KB, weights 100-900) rather than pulled from Google Fonts —
+   same "no external runtime dependency" policy already used for
+   Chart.js above. */
+@font-face {
+  font-family: "Vazirmatn";
+  src: url("/fonts/Vazirmatn-Variable.woff2") format("woff2-variations"), url("/fonts/Vazirmatn-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 * { box-sizing: border-box; }
 
 /* Lets --pct (used by .gauge-ring below) transition smoothly as a
@@ -45,7 +61,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: "Segoe UI", Tahoma, "Vazirmatn", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  font-family: "Vazirmatn", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Tahoma, sans-serif;
 }
 
 /* Sticky footer, desktop only: body stretches to the full viewport
