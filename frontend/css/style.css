@@ -753,6 +753,16 @@ body {
 }
 .ping-row-error { color: var(--red); font-size: 0.8rem; }
 
+/* Download+upload badges move to their own line together (not each on
+   its own, wherever it happens to fall) when the row runs out of
+   width — see the comment in appendPingLogLine(). */
+.ping-row-speeds {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .ping-badge {
   font-size: 0.75rem;
   font-weight: 600;

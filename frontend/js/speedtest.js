@@ -1013,12 +1013,21 @@
       const seq = document.createElement("span");
       seq.className = "ping-row-seq";
       seq.textContent = `#${pingLoopSeq}`;
-      row.append(
-        seq,
-        pingBadge(`${t("ping.pingLabel")} ${pingMs.toFixed(0)}ms`, pingQualityClass(pingMs)),
+
+      // Grouped into two explicit lines (ping alone, download+upload
+      // together) instead of one flex row left to wrap on its own —
+      // four items don't fit one line on a narrow phone, and letting
+      // the wrap fall wherever it happened to (usually stranding the
+      // upload badge alone, mis-aligned under nothing) looked broken.
+      // This way the break point is always the same, deliberate one.
+      const speeds = document.createElement("span");
+      speeds.className = "ping-row-speeds";
+      speeds.append(
         pingBadge(`↓ ${downMbps.toFixed(1)} Mbps`, speedQualityClass(downMbps)),
         pingBadge(`↑ ${upMbps.toFixed(1)} Mbps`, speedQualityClass(upMbps))
       );
+
+      row.append(seq, pingBadge(`${t("ping.pingLabel")} ${pingMs.toFixed(0)}ms`, pingQualityClass(pingMs)), speeds);
     }
     pingLogEl.appendChild(row);
     pingLogEl.scrollTop = pingLogEl.scrollHeight;
