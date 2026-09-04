@@ -141,6 +141,7 @@ body {
 .theme-toggle-half.active { background: var(--accent); color: white; }
 
 .page {
+  width: 100%;
   max-width: 720px;
   margin: 0 auto;
   padding: 2rem 1.5rem 3rem;
