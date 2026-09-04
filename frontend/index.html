@@ -24,7 +24,7 @@
 
   <main class="page">
     <section class="page-tab" id="tab-speedtest">
-    <section class="test-panel">
+    <section class="test-panel card">
       <div class="stat-row">
         <div class="stat-block">
           <div class="stat-block-head">
@@ -129,8 +129,28 @@
           <h2>تست پشت سر هم</h2>
           <button id="pingLoopToggleBtn" class="ping-loop-btn">شروع</button>
         </div>
-        <div id="pingLog" class="ping-log"></div>
-        <div id="pingStats" class="ping-stats"></div>
+
+        <div id="pingSummaryRow" class="ping-summary-row" hidden>
+          <div class="ping-summary-tile">
+            <span class="ping-summary-label">دورها</span>
+            <span id="pingSummaryRounds" class="ping-summary-value">۰</span>
+          </div>
+          <div class="ping-summary-tile">
+            <span class="ping-summary-label">میانگین پینگ</span>
+            <span id="pingSummaryPing" class="ping-summary-value">—</span>
+          </div>
+          <div class="ping-summary-tile">
+            <span class="ping-summary-label">میانگین دانلود</span>
+            <span id="pingSummaryDown" class="ping-summary-value">—</span>
+          </div>
+          <div class="ping-summary-tile">
+            <span class="ping-summary-label">میانگین آپلود</span>
+            <span id="pingSummaryUp" class="ping-summary-value">—</span>
+          </div>
+        </div>
+
+        <div id="pingLogEmpty" class="ping-log-empty">دکمه‌ی شروع رو بزنید تا دورهای پشت‌سرهم پینگ/دانلود/آپلود شروع بشه.</div>
+        <div id="pingLog" class="ping-log" hidden></div>
       </section>
     </section>
   </main>

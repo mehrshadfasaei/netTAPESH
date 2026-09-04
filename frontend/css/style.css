@@ -61,6 +61,21 @@ body {
   gap: 1.5rem;
 }
 
+/* Each tab (.page-tab) can hold more than one card (speed test tab:
+   the test panel + the history card) — needs its own flex/gap, same
+   as .page, or those cards would just stack flush against each other
+   with no breathing room between them. */
+.page-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+/* Same specificity as .page-tab above ([hidden] vs .page-tab), so
+   without this the "display: flex" rule wins and an inactive tab
+   stays visible (stacked under the active one) even while [hidden] is
+   set — same class of bug as the results overlay had earlier. */
+.page-tab[hidden] { display: none; }
+
 .test-panel {
   display: flex;
   flex-direction: column;
@@ -226,6 +241,11 @@ body {
   padding: 1rem 1.25rem 1.25rem;
 }
 .card-wide { width: 100%; }
+/* .test-panel already sets its own (larger, centered-content) padding
+   above — re-assert it here so .card's padding (later in source order,
+   same specificity) doesn't win the cascade when both classes are on
+   the same element. */
+.test-panel.card { padding: 1.75rem 1.25rem; }
 
 .card-header {
   display: flex;
@@ -403,46 +423,92 @@ body {
   background: var(--accent);
   color: white;
   border: none;
-  border-radius: 6px;
-  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  padding: 0.4rem 1.1rem;
   font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
 }
+.ping-loop-btn:hover { background: #3f78e0; }
 .ping-loop-btn.running { background: var(--red); }
+.ping-loop-btn.running:hover { background: #cc463f; }
+
+/* Live round summary — four stat tiles, filled in once at least one
+   round has completed (see renderPingStats() in speedtest.js). */
+.ping-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+.ping-summary-row[hidden] { display: none; }
+.ping-summary-tile {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.6rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  text-align: center;
+}
+.ping-summary-label { font-size: 0.7rem; color: var(--text-dim); }
+.ping-summary-value { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+
+.ping-log-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
 
 .ping-log {
   background: #0a0e18;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.75rem;
   height: 320px;
   overflow-y: auto;
-  font-family: "Consolas", "SFMono-Regular", Menlo, monospace;
-  font-size: 0.8rem;
-  line-height: 1.6;
-  color: #b9c4de;
-  /* Log lines mix Persian labels with LTR numbers/units — plain RTL
-     (matching the rest of the page) lets the browser's normal bidi
-     handling place the embedded numbers correctly, unlike forcing the
-     whole line LTR (fine when this was pure "Reply from ..." English
-     CMD-style text, wrong now that it's mostly Persian). */
-  direction: rtl;
-  text-align: right;
-  white-space: pre-wrap;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
 }
-.ping-log .ping-log-line.error { color: var(--red); }
-.ping-log .ping-good { color: var(--green); font-weight: 600; }
-.ping-log .ping-warn { color: var(--amber); font-weight: 600; }
-.ping-log .ping-bad { color: var(--red); font-weight: 600; }
+.ping-log[hidden] { display: none; }
 
-.ping-stats {
-  margin-top: 0.75rem;
+/* Each completed round: sequence number + three colored badges
+   (ping/download/upload), all on one row — replaces what used to be a
+   single terminal-style text line, easier to scan at a glance since
+   the three values are visually separated instead of run together. */
+.ping-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.15rem;
+  flex-wrap: wrap;
+}
+.ping-row + .ping-row { border-top: 1px solid var(--border); }
+.ping-row-seq {
   font-family: "Consolas", "SFMono-Regular", Menlo, monospace;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-dim);
-  direction: rtl;
-  text-align: right;
-  white-space: pre-wrap;
+  min-width: 2.5em;
+}
+.ping-row-error { color: var(--red); font-size: 0.8rem; }
+
+.ping-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.ping-badge.ping-good { color: var(--green); background: rgba(51, 192, 124, 0.14); }
+.ping-badge.ping-warn { color: var(--amber); background: rgba(226, 163, 60, 0.14); }
+.ping-badge.ping-bad { color: var(--red); background: rgba(229, 83, 75, 0.14); }
+
+@media (max-width: 500px) {
+  .ping-summary-row { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 500px) {
