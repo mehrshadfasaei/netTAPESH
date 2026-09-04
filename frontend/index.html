@@ -17,7 +17,13 @@
     <span id="nowStamp" class="now-stamp"></span>
   </header>
 
+  <nav class="tab-nav" id="tabNav">
+    <button class="tab-nav-btn active" data-tab="speedtest">تست سرعت</button>
+    <button class="tab-nav-btn" data-tab="continuousPing">تست پشت سر هم</button>
+  </nav>
+
   <main class="page">
+    <section class="page-tab" id="tab-speedtest">
     <section class="test-panel">
       <div class="stat-row">
         <div class="stat-block">
@@ -96,6 +102,23 @@
         <h3 class="history-chart-title icon-up">آپلود (Mbps)</h3>
         <canvas id="historyChartUp" height="80"></canvas>
       </div>
+    </section>
+    </section>
+
+    <!-- ---- Continuous ping tab: repeats /api/speedtest/ping in a loop
+         (like `ping -t`) until stopped, logging each round trip in a
+         terminal-style scrolling log. This endpoint does nothing but
+         reply instantly, so hammering it in a loop is negligible load
+         — nowhere near the download/upload tests. ---- -->
+    <section class="page-tab" id="tab-continuousPing" hidden>
+      <section class="card card-wide">
+        <div class="card-header">
+          <h2>تست پشت سر هم</h2>
+          <button id="pingLoopToggleBtn" class="ping-loop-btn">شروع</button>
+        </div>
+        <div id="pingLog" class="ping-log"></div>
+        <div id="pingStats" class="ping-stats"></div>
+      </section>
     </section>
   </main>
 

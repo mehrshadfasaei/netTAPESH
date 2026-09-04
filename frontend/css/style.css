@@ -393,6 +393,63 @@ body {
   .results-stat-value { font-size: 2.1rem; }
 }
 
+/* ---- Tab nav ---- */
+.tab-nav {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.tab-nav-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  padding: 0.75rem 0.25rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.tab-nav-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+
+/* ---- Continuous ping tab ---- */
+.ping-loop-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.ping-loop-btn.running { background: var(--red); }
+
+.ping-log {
+  background: #0a0e18;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  height: 320px;
+  overflow-y: auto;
+  font-family: "Consolas", "SFMono-Regular", Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: #b9c4de;
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+}
+.ping-log .ping-log-line.error { color: var(--red); }
+
+.ping-stats {
+  margin-top: 0.75rem;
+  font-family: "Consolas", "SFMono-Regular", Menlo, monospace;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  direction: ltr;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
 @media (max-width: 500px) {
   .gauge-row { flex-direction: column; gap: 0.75rem; }
   .side-info { flex-direction: row; width: auto; }
