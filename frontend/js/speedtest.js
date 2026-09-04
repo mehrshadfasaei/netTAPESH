@@ -72,7 +72,7 @@
     fa: {
       "lang.name": "فارسی",
       "tab.speedtest": "تست سرعت",
-      "tab.continuousPing": "تست پشت سر هم",
+      "tab.continuousPing": "تست پیوسته",
       "stat.download": "دانلود",
       "stat.upload": "آپلود",
       "mini.ping": "پینگ",
