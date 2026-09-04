@@ -196,13 +196,25 @@
           </div>
         </div>
 
-        <div id="pingLoopChartBlock" class="history-chart-block" hidden>
-          <h3 class="history-chart-title" data-i18n="ping.chartTitle">روند سرعت در طول تست</h3>
-          <canvas id="pingLoopChart" height="160"></canvas>
-        </div>
-
         <div id="pingLogEmpty" class="ping-log-empty" data-i18n="ping.empty">دکمه‌ی شروع رو بزنید تا دورهای پشت‌سرهم پینگ/دانلود/آپلود شروع بشه.</div>
         <div id="pingLog" class="ping-log" hidden></div>
+
+        <div id="pingLoopChartBlock" class="history-chart-block" hidden>
+          <div class="history-chart-head">
+            <h3 class="history-chart-title" data-i18n="ping.chartTitle">روند سرعت در طول تست</h3>
+            <div class="chart-series-toggles">
+              <label class="chart-series-toggle chart-series-toggle-down">
+                <input type="checkbox" id="pingChartToggleDown" checked />
+                <span data-i18n="ping.chartDown">دانلود</span>
+              </label>
+              <label class="chart-series-toggle chart-series-toggle-up">
+                <input type="checkbox" id="pingChartToggleUp" checked />
+                <span data-i18n="ping.chartUp">آپلود</span>
+              </label>
+            </div>
+          </div>
+          <canvas id="pingLoopChart" height="160"></canvas>
+        </div>
       </section>
     </section>
   </main>
