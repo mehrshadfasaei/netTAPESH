@@ -48,6 +48,21 @@ body {
   font-family: "Segoe UI", Tahoma, "Vazirmatn", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
 }
 
+/* Sticky footer, desktop only: body stretches to the full viewport
+   height and .page absorbs the extra space, so the footer sits at a
+   consistent distance from the bottom of the screen whether the
+   active tab's content is tall (speed test: gauge + history) or short
+   (continuous ping's empty state) — without this the footer would
+   just trail right behind whatever little content is on screen,
+   landing at a different height on every tab. Deliberately NOT
+   applied on mobile (media query below) — pinning it to the viewport
+   bottom there would often leave a large dead gap on a short page;
+   the user asked for it to sit close to the content instead. */
+@media (min-width: 501px) {
+  body { min-height: 100vh; display: flex; flex-direction: column; }
+  .page { flex: 1 0 auto; }
+}
+
 .topbar {
   padding: 0.85rem 1.5rem;
   border-bottom: 1px solid var(--border);
@@ -614,6 +629,13 @@ body {
 .site-footer {
   border-top: 1px solid var(--border);
   margin-top: 1rem;
+}
+@media (max-width: 500px) {
+  /* No viewport-stretch trick here (see the body/.page rule above) —
+     just pull the footer in closer to whatever content is on screen
+     instead of leaving it trailing far below. */
+  .page { padding-bottom: 1rem; }
+  .site-footer { margin-top: 0; }
 }
 .footer-inner {
   max-width: 720px;
