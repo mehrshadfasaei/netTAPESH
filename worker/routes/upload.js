@@ -1,4 +1,4 @@
-import { checkRateLimit, jsonResponse } from "../../_shared.js";
+import { checkRateLimit, jsonResponse } from "../shared.js";
 
 // Reads and discards the request body in chunks, returns how many bytes
 // it actually received. The client measures elapsed time against the
@@ -8,13 +8,13 @@ import { checkRateLimit, jsonResponse } from "../../_shared.js";
 // no longer uses this endpoint at all.
 const CAP_BYTES = 2_000_000;
 
-export async function onRequestPost(context) {
-  const limited = await checkRateLimit(context.env, "RL_UPLOAD", context.request);
+export async function upload(request, env) {
+  const limited = await checkRateLimit(env, "RL_UPLOAD", request);
   if (limited) return limited;
 
   let total = 0;
-  if (context.request.body) {
-    const reader = context.request.body.getReader();
+  if (request.body) {
+    const reader = request.body.getReader();
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;

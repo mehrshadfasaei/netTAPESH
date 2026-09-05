@@ -1,9 +1,8 @@
-// Shared helpers for the Cloudflare Pages Functions under functions/api/ —
-// this is the Cloudflare port of backend/api/routes.py (the FastAPI
-// backend), kept for local dev / self-hosting. See functions/README.md
-// for why this exists alongside the Python backend rather than
-// replacing it, and for deployment steps (D1 + rate-limit bindings
-// this code assumes are configured).
+// Shared helpers for worker/routes/* — this is the Cloudflare port of
+// backend/api/routes.py (the FastAPI backend), kept for local dev /
+// self-hosting. See worker/README.md for why this exists alongside the
+// Python backend rather than replacing it, and for deployment steps
+// (D1 + rate-limit bindings this code assumes are configured).
 
 // Cloudflare terminates the real connection itself, so CF-Connecting-IP
 // is always the actual visitor IP — no X-Forwarded-For chain-parsing

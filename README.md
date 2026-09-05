@@ -93,19 +93,19 @@ see the module docstring at the top of `frontend/js/speedtest.js`). The
 against M-Lab's network directly from the browser, not against this
 app's backend.
 
-### Cloudflare Pages (recommended — free, and not filtered from Iran the
-way most PaaS hosts are)
+### Cloudflare (recommended — free, and not filtered from Iran the way
+most PaaS hosts are)
 
-See `functions/README.md` for the full walkthrough (D1 database setup,
-rate-limit bindings, deploying). In short: `functions/` at the repo root
-is a from-scratch JavaScript port of `backend/api/routes.py`, built to
-run as [Cloudflare Pages
-Functions](https://developers.cloudflare.com/pages/functions/) — static
-frontend and API served from the same Cloudflare domain, no separate
-server to keep running, no cold-start sleep. **Not verified against a
-real Cloudflare account from this dev environment** (no network egress
-to Cloudflare's API here) — follow `functions/README.md`'s steps on
-your own machine and report back if anything doesn't match.
+See `worker/README.md` for the full walkthrough (D1 database setup,
+rate-limit bindings, deploying). In short: `worker/` is a from-scratch
+JavaScript port of `backend/api/routes.py`, built to run as a
+[Cloudflare Worker with a static-assets
+binding](https://developers.cloudflare.com/workers/static-assets/) —
+static frontend and API served from the same Cloudflare domain, no
+separate server to keep running, no cold-start sleep. **Not verified
+against a real Cloudflare account from this dev environment** (no
+network egress to Cloudflare's API here) — follow `worker/README.md`'s
+steps on your own machine and report back if anything doesn't match.
 
 ### Render.com (free tier)
 

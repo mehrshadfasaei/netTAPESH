@@ -1,11 +1,17 @@
-# Cloudflare Pages project config — deploys frontend/ as the static site
-# and functions/ (repo root, sibling to frontend/ — Pages Functions
-# convention) as the API. See functions/README.md for the full
-# deployment walkthrough (D1 database creation, applying schema.sql,
-# filling in database_id below).
+# Cloudflare Worker config (the current unified Workers+static-assets
+# model, not the older separate "Pages" product) — serves frontend/ as
+# static files and worker/index.js as the API. Requests matching a file
+# under frontend/ are served directly without touching the Worker
+# script at all; everything else (our /api/* routes, /health) reaches
+# worker/index.js. See worker/README.md for the full deployment
+# walkthrough (D1 database creation, applying schema.sql, filling in
+# database_id below).
 name = "nettapesh"
-pages_build_output_dir = "frontend"
+main = "worker/index.js"
 compatibility_date = "2024-09-23"
+
+[assets]
+directory = "./frontend"
 
 [[d1_databases]]
 binding = "DB"
