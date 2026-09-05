@@ -8,12 +8,21 @@
 # database_id below).
 name = "nettapesh"
 main = "worker/index.js"
-compatibility_date = "2024-09-23"
+# Cloudflare's own dashboard defaulted to today's date when a binding
+# was added there directly — matching it rather than an older pinned
+# date, since static-assets-serving Workers are a newer feature and an
+# older compatibility_date may not fully support it.
+compatibility_date = "2026-09-05"
 # Gives an immediately-testable https://nettapesh.<subdomain>.workers.dev
 # URL before a custom domain is wired up (see README's Cloudflare
 # section) — turn off once nettapesh.ir is pointed here, if you'd
 # rather only the real domain served it.
 workers_dev = true
+# Explicit per a build-log warning: leaving this unset made Cloudflare
+# silently default it to true, which may have been involved in every
+# request to the base workers.dev URL throwing (Error 1101) despite a
+# clean deploy and zero Observability events — worth ruling out.
+preview_urls = false
 
 [assets]
 directory = "./frontend"
