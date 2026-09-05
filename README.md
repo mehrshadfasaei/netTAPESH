@@ -82,12 +82,30 @@ line in `docker-compose.yml`.
 
 ## Deploying somewhere real
 
-Because accuracy depends on the server actually being reachable at
-realistic latency from wherever you're testing from, this is meant to
-run on a real host (a VPS, a home server with port forwarding, etc.),
-not just `localhost`. Put it behind a reverse proxy (nginx, Caddy) with
-TLS if you want `https://`; nothing in the app assumes a particular
-domain or port.
+Put this behind TLS (`https://`) rather than serving it plain — nothing
+in the app assumes a particular domain or port, so any of the options
+below work.
+
+Where you host this only matters for the **continuous-ping tab** and
+**history** (both genuinely test/depend on *this app's own server* —
+see the module docstring at the top of `frontend/js/speedtest.js`). The
+**main speed test doesn't care where you host it at all** — it measures
+against M-Lab's network directly from the browser, not against this
+app's backend.
+
+### Cloudflare Pages (recommended — free, and not filtered from Iran the
+way most PaaS hosts are)
+
+See `functions/README.md` for the full walkthrough (D1 database setup,
+rate-limit bindings, deploying). In short: `functions/` at the repo root
+is a from-scratch JavaScript port of `backend/api/routes.py`, built to
+run as [Cloudflare Pages
+Functions](https://developers.cloudflare.com/pages/functions/) — static
+frontend and API served from the same Cloudflare domain, no separate
+server to keep running, no cold-start sleep. **Not verified against a
+real Cloudflare account from this dev environment** (no network egress
+to Cloudflare's API here) — follow `functions/README.md`'s steps on
+your own machine and report back if anything doesn't match.
 
 ### Render.com (free tier)
 
@@ -122,16 +140,15 @@ platform's "deploy from GitHub repo" flow at this repo; no extra config
 needed beyond what's already in the `Dockerfile`. Same persistent-disk
 caveat as Render applies unless you attach a volume.
 
-### A VPS (recommended if accuracy matters)
+### A VPS
 
-This is genuinely the best option for a speed test, not just a fallback:
-a free-tier PaaS gives you no control over *where* the server sits, and
-for measuring your own connection, the server's location relative to you
-is the whole point. Pick a VPS in the country/city you actually want to
-test against — an Iranian VPS to measure your real ISP speed inside
-Iran (a foreign server would measure the international route instead,
-which isn't the same thing and isn't a bug in the app), a VPS elsewhere
-if that's what you actually want to test against.
+Gives you full control and a persistent disk, at the cost of actually
+paying for and maintaining a server — worth it if Cloudflare's free
+tier's limits (D1's row/request quotas, Workers' request-count cap) ever
+become a real constraint, or if you'd rather self-host the backend for
+its own sake. Doesn't affect the main test's accuracy the way it would
+have before the M-Lab migration (see above) — only the continuous-ping
+tab and history depend on the backend's own location/uptime.
 
 No PaaS-specific config needed — this repo's `Dockerfile` and
 `docker-compose.yml` already do everything:

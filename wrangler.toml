@@ -1,0 +1,67 @@
+# Cloudflare Pages project config — deploys frontend/ as the static site
+# and functions/ (repo root, sibling to frontend/ — Pages Functions
+# convention) as the API. See functions/README.md for the full
+# deployment walkthrough (D1 database creation, applying schema.sql,
+# filling in database_id below).
+name = "nettapesh"
+pages_build_output_dir = "frontend"
+compatibility_date = "2024-09-23"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nettapesh"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID" # from `wrangler d1 create nettapesh`
+
+# One binding per endpoint (the native Rate Limiting API fixes a single
+# limit/period per binding, not per call) — same per-route limits as
+# backend/api/routes.py's @limiter.limit(...) decorators, sized to
+# clear a normal test's request burst while still capping abuse. period
+# is in seconds; the API only allows 10 or 60.
+[[ratelimits]]
+name = "RL_PING"
+namespace_id = "1001"
+[ratelimits.simple]
+limit = 180
+period = 60
+
+[[ratelimits]]
+name = "RL_CLIENT_INFO"
+namespace_id = "1002"
+[ratelimits.simple]
+limit = 20
+period = 60
+
+[[ratelimits]]
+name = "RL_DOWNLOAD"
+namespace_id = "1003"
+[ratelimits.simple]
+limit = 60
+period = 60
+
+[[ratelimits]]
+name = "RL_UPLOAD"
+namespace_id = "1004"
+[ratelimits.simple]
+limit = 180
+period = 60
+
+[[ratelimits]]
+name = "RL_RESULT"
+namespace_id = "1005"
+[ratelimits.simple]
+limit = 20
+period = 60
+
+[[ratelimits]]
+name = "RL_LATEST"
+namespace_id = "1006"
+[ratelimits.simple]
+limit = 60
+period = 60
+
+[[ratelimits]]
+name = "RL_HISTORY"
+namespace_id = "1007"
+[ratelimits.simple]
+limit = 60
+period = 60
