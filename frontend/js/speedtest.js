@@ -655,7 +655,21 @@
   // dev environment (no network egress here) — if a future ndt-server
   // response shapes this differently, this just yields no ping/jitter
   // reading (null) rather than a wrong one.
+  // TEMPORARY diagnostic — a real user reported ping ~10x too LOW (their
+  // VPN's actual ping is ~200ms, this app showed ~20ms), which means the
+  // TCPInfo.RTT-in-microseconds assumption below is probably wrong, but
+  // it can't be fixed by guessing again without seeing a real payload
+  // (no network egress to M-Lab from the dev sandbox this was built in).
+  // Logs the raw server measurement once per test so it can be inspected
+  // in the browser console — remove once extractRttMs is confirmed
+  // correct against real data.
+  let _loggedRawServerMeasurement = false;
+
   function extractRttMs(serverData) {
+    if (!_loggedRawServerMeasurement) {
+      _loggedRawServerMeasurement = true;
+      console.log("[nettapesh debug] raw NDT7 server measurement:", JSON.stringify(serverData, null, 2));
+    }
     const rttUs = serverData && serverData.TCPInfo && serverData.TCPInfo.RTT;
     return typeof rttUs === "number" ? rttUs / 1000 : null;
   }
@@ -697,6 +711,7 @@
   }
 
   function runNdt7Test() {
+    _loggedRawServerMeasurement = false; // one fresh debug log per test run
     return new Promise((resolve, reject) => {
       const rttSamples = [];
       let downloadMbps = null;
