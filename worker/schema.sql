@@ -1,7 +1,7 @@
 -- D1 (Cloudflare's serverless SQLite) schema — the Cloudflare port of
 -- backend/db/models.py's SpeedtestLog table. Apply once when setting up
--- the D1 database (see functions/README.md):
---   npx wrangler d1 execute nettapesh --file=functions/schema.sql
+-- the D1 database (see worker/README.md):
+--   npx wrangler d1 execute nettapesh --remote --file=worker/schema.sql
 CREATE TABLE IF NOT EXISTS speedtest_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   timestamp TEXT NOT NULL DEFAULT (datetime('now')),

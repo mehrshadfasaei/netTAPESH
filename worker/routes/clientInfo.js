@@ -1,4 +1,4 @@
-import { checkRateLimit, clientIp, jsonResponse } from "../../_shared.js";
+import { checkRateLimit, clientIp, jsonResponse } from "../shared.js";
 
 // ISP name + city/country for the display around the GO button — looked
 // up by IP via ip-api.com's free tier (no key required, ~45 req/min
@@ -6,11 +6,11 @@ import { checkRateLimit, clientIp, jsonResponse } from "../../_shared.js";
 // always accurate — Cloudflare terminates the real connection), not
 // this Worker's own outbound IP, which would just describe Cloudflare's
 // own network instead of the visitor's.
-export async function onRequestGet(context) {
-  const limited = await checkRateLimit(context.env, "RL_CLIENT_INFO", context.request);
+export async function clientInfo(request, env) {
+  const limited = await checkRateLimit(env, "RL_CLIENT_INFO", request);
   if (limited) return limited;
 
-  const ip = clientIp(context.request);
+  const ip = clientIp(request);
   if (!ip || ip === "unknown") {
     return jsonResponse({ isp: null, location: null, ip: null });
   }

@@ -1,4 +1,4 @@
-import { checkRateLimit } from "../../_shared.js";
+import { checkRateLimit } from "../shared.js";
 
 // One chunk of random bytes, reused (not regenerated) across a whole
 // response — the client is timing raw transfer throughput, not this
@@ -15,11 +15,11 @@ const RANDOM_CHUNK = crypto.getRandomValues(new Uint8Array(CHUNK_SIZE));
 const DEFAULT_BYTES = 300_000;
 const MAX_BYTES = 5_000_000;
 
-export async function onRequestGet(context) {
-  const limited = await checkRateLimit(context.env, "RL_DOWNLOAD", context.request);
+export async function download(request, env) {
+  const limited = await checkRateLimit(env, "RL_DOWNLOAD", request);
   if (limited) return limited;
 
-  const url = new URL(context.request.url);
+  const url = new URL(request.url);
   const requested = parseInt(url.searchParams.get("bytes"), 10);
   const total = Math.min(Number.isFinite(requested) && requested > 0 ? requested : DEFAULT_BYTES, MAX_BYTES);
 

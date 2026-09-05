@@ -1,4 +1,4 @@
-import { checkRateLimit, jsonResponse, rowToDict } from "../../_shared.js";
+import { checkRateLimit, jsonResponse, rowToDict } from "../shared.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -9,18 +9,16 @@ function toSqliteUtc(date) {
   return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
-export async function onRequestGet(context) {
-  const limited = await checkRateLimit(context.env, "RL_HISTORY", context.request);
+export async function history(request, env) {
+  const limited = await checkRateLimit(env, "RL_HISTORY", request);
   if (limited) return limited;
 
-  const url = new URL(context.request.url);
+  const url = new URL(request.url);
   const range = url.searchParams.get("range") === "week" ? "week" : "day";
   const sinceDate = new Date(Date.now() - (range === "week" ? 7 : 1) * DAY_MS);
   const sinceSqlite = toSqliteUtc(sinceDate);
 
-  const { results } = await context.env.DB.prepare(
-    `SELECT * FROM speedtest_log WHERE timestamp >= ? ORDER BY timestamp ASC`
-  )
+  const { results } = await env.DB.prepare(`SELECT * FROM speedtest_log WHERE timestamp >= ? ORDER BY timestamp ASC`)
     .bind(sinceSqlite)
     .all();
 
