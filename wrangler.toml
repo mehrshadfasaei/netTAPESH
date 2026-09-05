@@ -30,7 +30,7 @@ directory = "./frontend"
 [[d1_databases]]
 binding = "DB"
 database_name = "nettapesh"
-database_id = "3cc0a09f-3b3b-421b-9f03-b96e82713f3e"
+database_id = "06d04b54-6f16-4819-9005-e60f6f1bfde6"
 
 # One binding per endpoint (the native Rate Limiting API fixes a single
 # limit/period per binding, not per call) — same per-route limits as
