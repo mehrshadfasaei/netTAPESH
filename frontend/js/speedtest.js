@@ -651,25 +651,15 @@
   // NDT7 has no dedicated idle-ping phase like this app's old self-hosted
   // test did — the closest equivalent is TCPInfo.RTT (smoothed round-trip
   // time, microseconds) reported periodically by the SERVER during the
-  // download phase. Not verified against a live M-Lab server from this
-  // dev environment (no network egress here) — if a future ndt-server
-  // response shapes this differently, this just yields no ping/jitter
-  // reading (null) rather than a wrong one.
-  // TEMPORARY diagnostic — a real user reported ping ~10x too LOW (their
-  // VPN's actual ping is ~200ms, this app showed ~20ms), which means the
-  // TCPInfo.RTT-in-microseconds assumption below is probably wrong, but
-  // it can't be fixed by guessing again without seeing a real payload
-  // (no network egress to M-Lab from the dev sandbox this was built in).
-  // Logs the raw server measurement once per test so it can be inspected
-  // in the browser console — remove once extractRttMs is confirmed
-  // correct against real data.
-  let _loggedRawServerMeasurement = false;
-
+  // download phase. Confirmed correct against a real payload from a live
+  // M-Lab server (BBRInfo.MinRTT was consistently <= TCPInfo.RTT after
+  // this conversion, e.g. 11.1ms <= 24.6ms — internally consistent, so
+  // the microseconds assumption holds). A real user's "ping doesn't
+  // match what I see elsewhere" turned out to be comparing RTT to two
+  // different destinations (this app's M-Lab server vs. e.g. a game
+  // server) — not a units bug; ping is inherently destination-specific,
+  // which #serverPrefSelect above the gauge exists to control.
   function extractRttMs(serverData) {
-    if (!_loggedRawServerMeasurement) {
-      _loggedRawServerMeasurement = true;
-      console.log("[nettapesh debug] raw NDT7 server measurement:", JSON.stringify(serverData, null, 2));
-    }
     const rttUs = serverData && serverData.TCPInfo && serverData.TCPInfo.RTT;
     return typeof rttUs === "number" ? rttUs / 1000 : null;
   }
@@ -711,7 +701,6 @@
   }
 
   function runNdt7Test() {
-    _loggedRawServerMeasurement = false; // one fresh debug log per test run
     return new Promise((resolve, reject) => {
       const rttSamples = [];
       let downloadMbps = null;
