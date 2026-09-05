@@ -9,6 +9,11 @@
 name = "nettapesh"
 main = "worker/index.js"
 compatibility_date = "2024-09-23"
+# Gives an immediately-testable https://nettapesh.<subdomain>.workers.dev
+# URL before a custom domain is wired up (see README's Cloudflare
+# section) — turn off once nettapesh.ir is pointed here, if you'd
+# rather only the real domain served it.
+workers_dev = true
 
 [assets]
 directory = "./frontend"
