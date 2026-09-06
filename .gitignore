@@ -19,3 +19,13 @@ data/
 # editors
 .vscode/
 .idea/
+
+# node / Playwright
+node_modules/
+test-results/
+playwright-report/
+blob-report/
+
+# pytest
+.pytest_cache/
+

@@ -90,6 +90,27 @@ Open `http://localhost:8000`. To change test sizes or ping sample count,
 copy `.env.example` to `.env`, edit it, and uncomment the `env_file`
 line in `docker-compose.yml`.
 
+## Running tests
+
+Backend tests (pytest — endpoint validation, rate limiting, history pruning):
+
+```bash
+pip install -r requirements.txt
+python -m pytest tests/ --ignore=tests/e2e
+```
+
+Frontend end-to-end tests (Playwright — runs a real speed test against the
+real backend in a browser, no mocks):
+
+```bash
+npm install
+npx playwright install --with-deps chromium
+npx playwright test
+```
+
+Both suites run automatically on every push/PR via GitHub Actions
+(`.github/workflows/ci.yml`).
+
 ## Deploying somewhere real
 
 Put this behind TLS (`https://`) rather than serving it plain — nothing
