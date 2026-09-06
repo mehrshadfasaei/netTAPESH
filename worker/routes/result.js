@@ -8,7 +8,7 @@ import { checkRateLimit, clientIp, jsonResponse } from "../shared.js";
 // once the table exceeds it) in case a deployment gets enough traffic
 // that retention alone isn't enough. Equivalent to _prune_history() in
 // backend/api/routes.py — kept in sync manually, per worker/README.md.
-const RETENTION_DAYS = 90;
+const RETENTION_DAYS = 7;
 const MAX_ROWS = 50_000;
 // Not run on every single insert (see the Math.random() check at the
 // call site) since it's more work than a plain insert — a fraction of

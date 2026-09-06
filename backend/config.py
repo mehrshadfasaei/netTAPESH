@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     # history_max_rows is a second, independent backstop (oldest rows
     # dropped once the table exceeds it) in case retention_days alone
     # isn't enough on a deployment getting hammered with traffic.
-    history_retention_days: int = 90
+    history_retention_days: int = 7
     history_max_rows: int = 50_000
 
 
