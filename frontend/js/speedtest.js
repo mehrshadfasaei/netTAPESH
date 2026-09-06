@@ -424,6 +424,11 @@
     }).join("");
 
     resultsOverlay.hidden = false;
+    // .results-overlay scrolls internally (overflow-y: auto — see
+    // style.css) and toggling [hidden] doesn't reset that on its own,
+    // so if a previous view of the overlay was scrolled down, it would
+    // reopen at that same scroll position instead of the top.
+    resultsOverlay.scrollTop = 0;
   }
 
   resultsCloseBtn.addEventListener("click", () => {
