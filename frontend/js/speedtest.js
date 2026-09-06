@@ -881,23 +881,46 @@
         onBytes(e.loaded - lastLoaded);
         lastLoaded = e.loaded;
       };
-      xhr.onload = () => resolve();
-      xhr.onerror = () => reject(new Error("upload network error"));
-      xhr.onabort = () => reject(new DOMException("aborted", "AbortError"));
+      // Removed once this settles either way — signal is the SAME
+      // AbortController's signal reused across every chunk in the
+      // lane's whole retry loop below, not a fresh one per request, so
+      // leaving a still-attached {once:true} listener behind on every
+      // successful chunk (it only auto-removes if it actually fires)
+      // would otherwise pile up one dead listener per chunk for the
+      // entire 8s window.
       const onSignalAbort = () => xhr.abort();
-      signal.addEventListener("abort", onSignalAbort, { once: true });
+      const cleanup = () => signal.removeEventListener("abort", onSignalAbort);
+      xhr.onload = () => { cleanup(); resolve(); };
+      xhr.onerror = () => { cleanup(); reject(new Error("upload network error")); };
+      xhr.onabort = () => { cleanup(); reject(new DOMException("aborted", "AbortError")); };
+      signal.addEventListener("abort", onSignalAbort);
       xhr.send(_uploadBuffer);
     });
   }
 
   async function uploadLane(signal, onBytes) {
-    try {
-      while (!signal.aborted) {
+    while (!signal.aborted) {
+      try {
         await xhrUploadOnce(signal, onBytes);
+      } catch (e) {
+        // Previously this try/catch wrapped the whole while loop, so
+        // ANY single failed chunk — including one genuinely transient
+        // hiccup, not just the expected end-of-window abort — silently
+        // ended this entire lane for the rest of the test, contributing
+        // zero more bytes for however many seconds were left. Reported
+        // as the upload result coming back ~0 (or the test "hanging",
+        // since the outer 8s timer runs regardless of whether any lane
+        // is still doing anything) alongside a net::ERR_HTTP2_PROTOCOL_
+        // ERROR in the console — that's a real, if transient, network/
+        // protocol failure, but one bad chunk shouldn't take the whole
+        // lane down with it.
+        if (signal.aborted) break; // the expected, deliberate end-of-window case
+        // A genuine failure — pause briefly before retrying so a flaky
+        // connection/transient server-side hiccup gets a moment to
+        // clear instead of being hammered with an immediate retry (same
+        // idea as the continuous-ping loop's own pause between rounds).
+        await new Promise((resolve) => setTimeout(resolve, 300));
       }
-    } catch (e) {
-      // aborted mid-chunk — bytes already sent were counted incrementally
-      // via onprogress above, so nothing is lost by the abort itself
     }
   }
 
