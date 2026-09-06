@@ -19,7 +19,18 @@ export function clientIp(request) {
 // mirroring the distinct @limiter.limit(...) values on each Python route.
 export async function checkRateLimit(env, binding, request) {
   const limiter = env[binding];
-  if (!limiter) return null; // binding not configured — fail open, not closed
+  if (!limiter) {
+    // Fails CLOSED, not open: a missing binding means this deployment
+    // is misconfigured (every route here is supposed to have one — see
+    // wrangler.toml), and silently letting the request through would
+    // turn a config mistake into an invisible, unlimited-rate-limit
+    // security hole instead of an obvious, loud breakage that gets
+    // noticed and fixed. A wrong wrangler.toml edit is a real, recent
+    // failure mode here (this exact project hit two separate staging-
+    // Worker binding misconfigurations in one session), so this isn't
+    // a hypothetical.
+    return jsonResponse({ error: "rate limiter misconfigured" }, 500);
+  }
   const { success } = await limiter.limit({ key: clientIp(request) });
   if (success) return null;
   return jsonResponse({ error: "rate limit exceeded" }, 429);

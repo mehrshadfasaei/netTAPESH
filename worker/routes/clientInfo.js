@@ -1,5 +1,21 @@
 import { checkRateLimit, clientIp, jsonResponse } from "../shared.js";
 
+// CF-Connecting-IP is Cloudflare-guaranteed to be a clean address today
+// (Cloudflare's edge sets it itself, overwriting anything a client
+// sends) — but this checks it's actually IP-shaped anyway before it
+// goes into an outbound URL below, rather than trusting that guarantee
+// to hold forever or trusting ip-api.com/fetch() to fail safely on
+// malformed input. Deliberately permissive on IPv6 (hex digits + colons
+// generously) rather than a full RFC-4291 validator — the goal here is
+// rejecting anything that isn't IP-shaped at all (the actual injection
+// concern), not full address-format correctness.
+function isValidIp(ip) {
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
+    return ip.split(".").every((part) => Number(part) <= 255);
+  }
+  return ip.includes(":") && /^[0-9a-fA-F:]+$/.test(ip);
+}
+
 // ISP name + city/country for the display around the GO button — looked
 // up by IP via ip-api.com's free tier (no key required, ~45 req/min
 // limit). Looks up the *client's* IP specifically (CF-Connecting-IP,
@@ -11,7 +27,7 @@ export async function clientInfo(request, env) {
   if (limited) return limited;
 
   const ip = clientIp(request);
-  if (!ip || ip === "unknown") {
+  if (!ip || ip === "unknown" || !isValidIp(ip)) {
     return jsonResponse({ isp: null, location: null, ip: null });
   }
 

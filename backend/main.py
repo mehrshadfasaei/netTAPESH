@@ -37,6 +37,33 @@ def on_startup() -> None:
     init_db()
 
 
+# CSP is strict, not a starting point to loosen: this app has no inline
+# <script> (only same-origin src="/js/..." files, all vendored locally
+# — see frontend/index.html) and no inline event handlers, so script-src
+# 'self' with no 'unsafe-inline'/'unsafe-eval' costs nothing
+# functionally while closing off exactly the class of bug that would
+# otherwise turn a future accidental unescaped-innerHTML regression
+# into a working XSS. style-src keeps 'unsafe-inline' because
+# speedtest.js sets plenty of inline styles via the element.style CSSOM
+# API (gauge needle rotation, progress bar width, dynamic colors) —
+# blocking that would break real functionality, and it's a much smaller
+# attack surface than script-src (CSS alone can't execute arbitrary JS).
+_CSP = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self'",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "object-src 'none'",
+    ]
+)
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     """A few standard defensive headers with no functional downside for
@@ -46,6 +73,13 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = _CSP
+    # Harmless to send unconditionally — browsers only ever honor this
+    # when it actually arrives over HTTPS, so it's a no-op for local
+    # plain-HTTP dev but real protection once deployed behind TLS
+    # (whether that's a reverse proxy you put in front, per the README's
+    # VPS section, or Cloudflare's own edge).
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 

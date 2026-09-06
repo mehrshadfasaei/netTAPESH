@@ -8,6 +8,22 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/netpulse.db"
 
+    # X-Forwarded-For is only trustworthy when something in front of
+    # this process (a reverse proxy) actually sets it itself and
+    # strips/overwrites whatever a client sent — otherwise it's just an
+    # attacker-controlled header. Defaults to NOT trusting it (uses the
+    # real TCP peer address instead, which can't be spoofed) because the
+    # README documents running this with nothing in front at all
+    # (`docker compose up` + open port 8000) as a normal option, not
+    # just as a reverse-proxied deployment. Set
+    # NETPULSE_TRUST_PROXY_HEADERS=true only when this really is behind
+    # a reverse proxy (Caddy, nginx, Cloudflare Tunnel, etc.) that you
+    # know overwrites client-supplied X-Forwarded-For — otherwise every
+    # rate limit (@limiter.limit(...) below) becomes trivially
+    # bypassable: an attacker who can set an arbitrary X-Forwarded-For
+    # gets a fresh rate-limit bucket on every single request.
+    trust_proxy_headers: bool = False
+
     # When false (the production default), disables the interactive
     # Swagger/ReDoc docs and the raw OpenAPI schema — no reason to
     # expose the full API surface publicly on a deployed instance.

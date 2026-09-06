@@ -6,13 +6,15 @@ streams bytes *to* it; the client times both itself.
 """
 from __future__ import annotations
 
+import ipaddress
+import math
 import os
 import random
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 import httpx
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from slowapi import Limiter
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -31,10 +33,17 @@ def _extract_client_ip(request: Request) -> str | None:
     # Render (and most PaaS reverse proxies) put the real visitor IP in
     # X-Forwarded-For, not request.client.host — that's the proxy's own
     # address. X-Forwarded-For can be a comma-separated chain if there
-    # were multiple hops; the first entry is the original client.
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    # were multiple hops; the first entry is the original client. BUT
+    # this header is entirely attacker-controlled unless something
+    # trustworthy in front of this process overwrites it — see
+    # settings.trust_proxy_headers's comment in config.py. Without that
+    # explicit opt-in, fall back to request.client.host: the actual TCP
+    # peer address, which a client cannot forge no matter what headers
+    # it sends.
+    if settings.trust_proxy_headers:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
     return request.client.host if request.client else None
 
 
@@ -90,10 +99,21 @@ async def speedtest_client_info(request: Request):
     if not client_ip:
         return {"isp": None, "location": None, "ip": None}
 
+    # ipaddress.ip_address() raises ValueError for anything that isn't
+    # actually a well-formed IP — client_ip can be attacker-controlled
+    # (see settings.trust_proxy_headers) when this is deployed behind a
+    # reverse proxy, and it's interpolated straight into the ip-api.com
+    # URL below, so this rejects it before that rather than trusting
+    # ip-api.com/httpx to handle malformed input safely.
+    try:
+        ip_obj = ipaddress.ip_address(client_ip)
+    except ValueError:
+        return {"isp": None, "location": None, "ip": None}
+
     # Private/loopback addresses (local dev, or a proxy that didn't set
     # X-Forwarded-For) aren't geolocatable — ip-api.com would just
     # return a "private range" error for these, so skip the call.
-    if client_ip in ("127.0.0.1", "::1") or client_ip.startswith(("10.", "192.168.", "172.16.")):
+    if ip_obj.is_private or ip_obj.is_loopback:
         return {"isp": None, "location": None, "ip": client_ip}
 
     try:
@@ -187,6 +207,29 @@ def _prune_history(session: Session) -> None:
     session.commit()
 
 
+_MAX_PING_MS = 100_000  # 100s — absurdly generous, just a sanity ceiling
+_MAX_MBPS = 1_000_000  # 1 Tbps — same idea
+
+
+def _validate_metric(value: object, max_value: float, name: str) -> float | None:
+    """This endpoint has no authentication by design (see "Known
+    limitations" in the README) — anyone can POST to it, not just a
+    client that actually ran a test. Without this, a POST carrying e.g.
+    {"download_mbps": "<script>", "ping_ms": -1} would be stored as-is
+    and later handed straight into Chart.js by the history chart
+    (loadHistory() in frontend/js/speedtest.js, which does no validation
+    of its own) — degrading or blanking the shared history chart for
+    every visitor from one malicious request. Rejects anything that
+    isn't null or a finite, non-negative number under a sane ceiling."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise HTTPException(400, f"{name} must be a number or null")
+    if not math.isfinite(value) or value < 0 or value > max_value:
+        raise HTTPException(400, f"{name} out of range")
+    return float(value)
+
+
 @router.post("/speedtest/result")
 @limiter.limit("20/minute")
 def speedtest_result(request: Request, payload: dict, session: Session = Depends(get_session)):
@@ -194,11 +237,11 @@ def speedtest_result(request: Request, payload: dict, session: Session = Depends
     happens client-side, against /ping, /download, /upload above) so
     they show up in history."""
     row = SpeedtestLog(
-        ping_ms=payload.get("ping_ms"),
-        jitter_ms=payload.get("jitter_ms"),
-        download_mbps=payload.get("download_mbps"),
-        upload_mbps=payload.get("upload_mbps"),
-        client_ip=request.client.host if request.client else None,
+        ping_ms=_validate_metric(payload.get("ping_ms"), _MAX_PING_MS, "ping_ms"),
+        jitter_ms=_validate_metric(payload.get("jitter_ms"), _MAX_PING_MS, "jitter_ms"),
+        download_mbps=_validate_metric(payload.get("download_mbps"), _MAX_MBPS, "download_mbps"),
+        upload_mbps=_validate_metric(payload.get("upload_mbps"), _MAX_MBPS, "upload_mbps"),
+        client_ip=_extract_client_ip(request),
     )
     session.add(row)
     session.commit()
