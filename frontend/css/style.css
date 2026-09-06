@@ -133,6 +133,20 @@ body {
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+/* Persian spelling of the brand name (see <h1> in index.html) — real,
+   visible alternate-name content for people who search "نت‌تپش"
+   instead of "netTAPESH" (also declared as alternateName in the
+   WebApplication JSON-LD). Dimmer + lighter weight so it visually
+   reads as a secondary label, not a second brand name competing with
+   the main one. */
+.brand-alt-name { color: var(--text-dim); font-weight: 500; }
+@media (max-width: 500px) {
+  /* Only the header copy — same tight-header-on-mobile reasoning as
+     .now-stamp being dropped below, not worth fighting the language/
+     theme controls for space on a narrow screen. The footer has room
+     to spare, so its copy (see .footer-brand-name) stays. */
+  .topbar-brand .brand-alt-name { display: none; }
+}
 
 .topbar-actions {
   display: flex;
