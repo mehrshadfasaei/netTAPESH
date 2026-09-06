@@ -608,6 +608,15 @@ body {
 .unit-toggle button.active { background: var(--accent); color: white; border-color: var(--accent); }
 
 .history-chart-block + .history-chart-block { margin-top: 2.5rem; }
+/* Same treatment as .ping-log-empty — shown instead of two bare empty
+   chart grids when there's genuinely no history yet (see loadHistory()
+   in speedtest.js). */
+.history-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
 /* pingLoopChartBlock sits after .ping-log, not after another chart
    block, so the "+" rule above doesn't reach it — needs its own gap. */
 #pingLoopChartBlock { margin-top: 1.5rem; }

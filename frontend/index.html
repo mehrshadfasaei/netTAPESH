@@ -211,11 +211,17 @@
           <button data-range="week" data-i18n="range.week">هفته</button>
         </div>
       </div>
-      <div class="history-chart-block">
+      <!-- Shown instead of two bare, awkward empty-grid charts (0 to
+           1.0, no data) the first time a visitor opens this before
+           ever running a test — see loadHistory() in speedtest.js,
+           which toggles this against the two chart blocks below based
+           on whether the fetched range actually has any rows. -->
+      <div id="historyEmpty" class="history-empty" data-i18n="history.empty" hidden>هنوز تستی ثبت نشده — یه تست سرعت بزن تا اینجا نمودارش رو ببینی.</div>
+      <div class="history-chart-block" id="historyChartDownBlock">
         <h3 class="history-chart-title icon-down" data-i18n="history.download">دانلود (Mbps)</h3>
         <canvas id="historyChartDown" height="160"></canvas>
       </div>
-      <div class="history-chart-block">
+      <div class="history-chart-block" id="historyChartUpBlock">
         <h3 class="history-chart-title icon-up" data-i18n="history.upload">آپلود (Mbps)</h3>
         <canvas id="historyChartUp" height="160"></canvas>
       </div>

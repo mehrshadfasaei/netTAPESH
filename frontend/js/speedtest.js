@@ -83,6 +83,7 @@
       "range.week": "هفته",
       "history.download": "دانلود (Mbps)",
       "history.upload": "آپلود (Mbps)",
+      "history.empty": "هنوز تستی ثبت نشده — یه تست سرعت بزن تا اینجا نمودارش رو ببینی.",
       "pingtab.start": "شروع",
       "pingtab.stop": "توقف",
       "ping.rounds": "دورها",
@@ -147,6 +148,7 @@
       "range.week": "Week",
       "history.download": "Download (Mbps)",
       "history.upload": "Upload (Mbps)",
+      "history.empty": "No tests recorded yet — run a speed test to see it charted here.",
       "pingtab.start": "Start",
       "pingtab.stop": "Stop",
       "ping.rounds": "Rounds",
@@ -1099,6 +1101,9 @@
 
   const historyChartDown = makeHistoryBarChart("historyChartDown", "#4f8cff");
   const historyChartUp = makeHistoryBarChart("historyChartUp", "#33c07c");
+  const historyEmptyEl = document.getElementById("historyEmpty");
+  const historyChartDownBlockEl = document.getElementById("historyChartDownBlock");
+  const historyChartUpBlockEl = document.getElementById("historyChartUpBlock");
 
   // ---- Continuous-ping trend chart ----
   // Built once when a continuous-ping run is stopped (not live-updated
@@ -1206,6 +1211,16 @@
   async function loadHistory(range) {
     const res = await fetch(`/api/speedtest/history?range=${range}`);
     const data = await res.json();
+
+    // A brand-new visitor (or a fresh range with nothing in it yet) got
+    // two bare, empty 0-to-1.0 chart grids here before — same "show a
+    // real empty-state message instead of a blank chart" treatment the
+    // continuous-ping tab already had (see #pingLogEmpty).
+    const isEmpty = data.results.length === 0;
+    historyEmptyEl.hidden = !isEmpty;
+    historyChartDownBlockEl.hidden = isEmpty;
+    historyChartUpBlockEl.hidden = isEmpty;
+    if (isEmpty) return;
 
     const downRows = data.results.filter((r) => r.download_mbps != null);
     const upRows = data.results.filter((r) => r.upload_mbps != null);
