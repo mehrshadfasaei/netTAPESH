@@ -316,6 +316,8 @@
   const nowStampEl = document.getElementById("nowStamp");
   const ispNameEl = document.getElementById("ispName");
   const locationNameEl = document.getElementById("locationName");
+  const ispInfoEl = document.getElementById("ispInfo");
+  const locationInfoEl = document.getElementById("locationInfo");
   const resultsOverlay = document.getElementById("resultsOverlay");
   const resultsCloseBtn = document.getElementById("resultsCloseBtn");
   const resDown = document.getElementById("resDown");
@@ -915,6 +917,8 @@
     // no-op if it isn't running.
     stopPingLoop();
     speedoWrapEl.hidden = false; // reveal the dial now that a test is actually running
+    ispInfoEl.hidden = false; // same — ISP/location join the button once a test starts, not before
+    locationInfoEl.hidden = false;
     runBtn.hidden = true; // hide the moment the test starts, not just once it finishes
     runBtn.disabled = true;
     rPing.textContent = "—";

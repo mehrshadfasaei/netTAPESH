@@ -118,7 +118,14 @@
       </div>
 
       <div class="gauge-row">
-        <div class="side-info" id="ispInfo">
+        <!-- Hidden until the user clicks شروع تست (see runTest() in
+             speedtest.js) — per feedback, styled after a real
+             Speedtest.net screen, the very first thing shown should be
+             just the button; ISP/IP/location join it once a test is
+             actually starting, not before. loadClientInfo() still
+             fetches in the background from page load either way, so
+             these already have real values the moment they appear. -->
+        <div class="side-info" id="ispInfo" hidden>
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1" stroke-linecap="round"/></svg>
           <span id="ispName" class="side-info-text">—</span>
         </div>
@@ -127,7 +134,7 @@
           <span id="runBtnLabel" data-i18n="start.button">شروع تست</span>
         </button>
 
-        <div class="side-info" id="locationInfo">
+        <div class="side-info" id="locationInfo" hidden>
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>
           <span id="locationName" class="side-info-text">—</span>
         </div>
