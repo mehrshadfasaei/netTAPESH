@@ -31,5 +31,15 @@ class Settings(BaseSettings):
     # browser memory bounded and gives reasonably fine-grained timing.
     upload_chunk_bytes: int = 4_000_000  # 4 MB
 
+    # History retention: the history chart only ever reads "day" or
+    # "week" ranges (see speedtest_history in api/routes.py), so nothing
+    # past this window is ever shown — keeping it around forever would
+    # just grow the database unboundedly with data nothing displays.
+    # history_max_rows is a second, independent backstop (oldest rows
+    # dropped once the table exceeds it) in case retention_days alone
+    # isn't enough on a deployment getting hammered with traffic.
+    history_retention_days: int = 90
+    history_max_rows: int = 50_000
+
 
 settings = Settings()

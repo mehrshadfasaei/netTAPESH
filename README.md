@@ -61,7 +61,13 @@ not a full throughput test), sharing the endpoints rather than the
 methodology.
 
 Results are optionally saved (`POST /api/speedtest/result`) so the
-dashboard can show a history chart.
+dashboard can show a history chart. History isn't kept forever: rows
+older than 90 days are pruned automatically (the history chart only
+ever shows a "day" or "week" range anyway), and a second, independent
+cap drops the oldest rows if the table ever exceeds 50,000 regardless of
+age — both run opportunistically after a fraction of saved results, not
+on every one, so a busy deployment's database stays bounded without a
+separate cleanup job to remember to run.
 
 ## Running locally
 

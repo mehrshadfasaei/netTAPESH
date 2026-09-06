@@ -13,3 +13,9 @@ CREATE TABLE IF NOT EXISTS speedtest_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_speedtest_log_timestamp ON speedtest_log (timestamp);
+
+-- No cleanup/retention logic here — pruning old rows so this table
+-- doesn't grow without bound is handled in application code
+-- (pruneHistory() in worker/routes/result.js, _prune_history() in
+-- backend/api/routes.py for the Python backend), run opportunistically
+-- after each saved result rather than as a DB-level trigger/cron.

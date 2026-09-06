@@ -7,13 +7,14 @@ streams bytes *to* it; the client times both itself.
 from __future__ import annotations
 
 import os
+import random
 from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 import httpx
 from fastapi import APIRouter, Depends, Query, Request
 from slowapi import Limiter
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 from starlette.responses import StreamingResponse
 
@@ -152,6 +153,35 @@ async def speedtest_upload(request: Request):
     return {"received_bytes": total}
 
 
+def _prune_history(session: Session) -> None:
+    """Keeps speedtest_log from growing without bound. The history chart
+    only ever reads "day"/"week" ranges (see speedtest_history below),
+    so anything past settings.history_retention_days is already
+    invisible in the UI — this just stops it from silently piling up in
+    the database forever. settings.history_max_rows is a second,
+    independent cap (oldest rows dropped once the table exceeds it) in
+    case a deployment gets enough traffic that retention_days alone
+    isn't enough. Not run on every single insert (see the random.random()
+    check at the call site) since it's a bit more work than a plain
+    insert — a fraction of writes paying for it is plenty to keep the
+    table bounded without taxing every request. Cloudflare Worker
+    deployments use the equivalent pruneHistory() in
+    worker/routes/result.js — kept in sync manually, per
+    worker/README.md."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=settings.history_retention_days)
+    session.execute(delete(SpeedtestLog).where(SpeedtestLog.timestamp < cutoff))
+
+    total = session.execute(select(func.count()).select_from(SpeedtestLog)).scalar_one()
+    if total > settings.history_max_rows:
+        excess = total - settings.history_max_rows
+        oldest_ids = session.execute(
+            select(SpeedtestLog.id).order_by(SpeedtestLog.timestamp.asc()).limit(excess)
+        ).scalars().all()
+        if oldest_ids:
+            session.execute(delete(SpeedtestLog).where(SpeedtestLog.id.in_(oldest_ids)))
+    session.commit()
+
+
 @router.post("/speedtest/result")
 @limiter.limit("20/minute")
 def speedtest_result(request: Request, payload: dict, session: Session = Depends(get_session)):
@@ -167,6 +197,8 @@ def speedtest_result(request: Request, payload: dict, session: Session = Depends
     )
     session.add(row)
     session.commit()
+    if random.random() < 0.1:
+        _prune_history(session)
     return {"status": "saved", "id": row.id}
 
 

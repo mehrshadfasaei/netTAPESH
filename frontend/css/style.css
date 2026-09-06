@@ -437,6 +437,10 @@ body {
   justify-content: center;
   text-align: center;
   padding: 0.5rem;
+  /* This is a circle (border-radius: 50%) — never let a flex ancestor's
+     default flex-shrink squash it into an oval (see the fix note on
+     .results-overlay above for how that happened in practice). */
+  flex-shrink: 0;
 }
 .btn-start:hover { background: rgba(79, 140, 255, 0.08); }
 .btn-start:disabled { cursor: default; opacity: 0.6; }
@@ -573,6 +577,18 @@ body {
   overflow-y: auto;
   display: flex;
   justify-content: center;
+  /* Without this, default align-items: stretch forces .results-panel to
+     exactly the overlay's height (100% of the viewport, since the
+     overlay is position: fixed; inset: 0). On mobile the panel's real
+     content (stats, quality dots, meta list, mini charts) is almost
+     always taller than the screen, so every column child's default
+     flex-shrink: 1 then compresses proportionally to force-fit that
+     artificial height — squashing the circular restart button (.btn-
+     start-sm, meant to stay 104x104px) into a flattened ~104x46px
+     oval, with its Persian label crammed into the squeeze. Letting the
+     panel size itself from its own content (and scroll via overflow-y
+     above, which is what it's for) fixes that. */
+  align-items: flex-start;
   padding: 2rem 1rem 3rem;
 }
 /* Same specificity as the rule above ([hidden] vs .results-overlay), so
