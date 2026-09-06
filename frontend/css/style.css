@@ -940,17 +940,42 @@ body {
   font-weight: 700;
   margin: 0 0 1.25rem;
 }
-.faq-item + .faq-item { margin-top: 1.25rem; }
-.faq-item h3 {
+.faq-item { border-bottom: 1px solid var(--border); }
+.faq-item:last-child { border-bottom: none; }
+/* .faq-item is a <details> — click-to-expand accordion, no JS (see the
+   comment on #faqSection in index.html). Default <summary> markers
+   (a triangle in Chrome/Firefox, differently-styled per browser)
+   replaced with a single custom chevron via ::after so it looks the
+   same everywhere and rotates oppaque with [open], instead of relying
+   on inconsistent native disclosure-triangle styling. */
+.faq-item summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0;
   font-size: 0.9rem;
   font-weight: 600;
-  margin: 0 0 0.4rem;
 }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after {
+  content: "";
+  flex-shrink: 0;
+  width: 0.5em;
+  height: 0.5em;
+  border-inline-end: 2px solid var(--text-dim);
+  border-bottom: 2px solid var(--text-dim);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+.faq-item[open] summary::after { transform: rotate(-135deg); }
 .faq-item p {
   font-size: 0.85rem;
   color: var(--text-dim);
   line-height: 1.7;
-  margin: 0;
+  margin: 0 0 0.75rem;
 }
 
 /* ---- Footer ---- */

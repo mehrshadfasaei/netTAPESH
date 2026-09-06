@@ -98,6 +98,7 @@
       "ping.chartUp": "آپلود",
       "footer.desc": "اسپیدتست اینترنت خودمیزبان — بدون نصب، بدون حساب کاربری. پینگ، دانلود و آپلود مستقیماً در برابر همین سرور اندازه‌گیری می‌شه.",
       "footer.github": "مخزن GitHub",
+      "footer.resume": "رزومه‌ی سازنده",
       "footer.copyright": "© {year} netTAPESH — ساخته‌شده با FastAPI و جاوااسکریپت خالص.",
       "theme.toggle": "تغییر تم روشن/تیره",
       "results.close": "بستن",
@@ -161,6 +162,7 @@
       "ping.chartUp": "Upload",
       "footer.desc": "Self-hosted internet speed test — no install, no account. Ping, download, and upload are measured directly against this same server.",
       "footer.github": "GitHub Repo",
+      "footer.resume": "Developer's Résumé",
       "footer.copyright": "© {year} netTAPESH — built with FastAPI and vanilla JavaScript.",
       "theme.toggle": "Toggle light/dark theme",
       "results.close": "Close",
@@ -912,7 +914,24 @@
       // entire 8s window.
       const onSignalAbort = () => xhr.abort();
       const cleanup = () => signal.removeEventListener("abort", onSignalAbort);
-      xhr.onload = () => { cleanup(); resolve(); };
+      xhr.onload = () => {
+        cleanup();
+        // xhr.onload fires for ANY completed response, 429/500 included
+        // — without this check, a rate-limited or server-error response
+        // silently counted as success (resolve()), so the retry/backoff
+        // logic in uploadLane() never kicked in for it. Real-world
+        // impact: any connection fast enough to burst past the upload
+        // rate limit within one test window got a response that LOOKED
+        // successful per-request but carried ~0 real bytes each time
+        // (the server rejects before accepting the body), so the lane
+        // just spun through hundreds of instant "successful" no-op
+        // requests all the way to the actual result: 0 or near-0 Mbps.
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`upload failed with status ${xhr.status}`));
+        }
+      };
       xhr.onerror = () => { cleanup(); reject(new Error("upload network error")); };
       xhr.onabort = () => { cleanup(); reject(new DOMException("aborted", "AbortError")); };
       signal.addEventListener("abort", onSignalAbort);

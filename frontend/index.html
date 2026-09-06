@@ -285,26 +285,32 @@
          default on first load. -->
     <section class="faq-section" id="faqSection">
       <h2 class="faq-title" data-i18n="faq.title">سوالات متداول</h2>
-      <div class="faq-item">
-        <h3 data-i18n="faq.q1">تست سرعت اینترنت netTAPESH چطور کار می‌کنه؟</h3>
+      <!-- Native <details>/<summary> — click-to-expand accordion with
+           zero JS (the browser handles open/close, keyboard, and
+           accessibility semantics for free). Google explicitly treats
+           collapsed <details> content as fully indexable, so this is
+           no weaker for SEO than the always-visible version it
+           replaces — see the matching FAQPage JSON-LD below. -->
+      <details class="faq-item">
+        <summary data-i18n="faq.q1">تست سرعت اینترنت netTAPESH چطور کار می‌کنه؟</summary>
         <p data-i18n="faq.a1">برخلاف بیشتر ابزارهای تست سرعت که به سرورهای یه شرکت دیگه وصل می‌شن، netTAPESH پینگ، دانلود و آپلود رو مستقیماً در برابر همین سروری که الان بازش کردی اندازه‌گیری می‌کنه — بدون نصب برنامه و بدون ساختن حساب کاربری.</p>
-      </div>
-      <div class="faq-item">
-        <h3 data-i18n="faq.q2">چرا عدد پینگ توی این تست با اپ‌های دیگه فرق داره؟</h3>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faq.q2">چرا عدد پینگ توی این تست با اپ‌های دیگه فرق داره؟</summary>
         <p data-i18n="faq.a2">پینگ همیشه به مقصد بستگی داره — هر سرویس تست سرعت به یه سرور متفاوت وصل می‌شه، پس عددهای پینگ بین ابزارهای مختلف طبیعتاً یکی نیستن؛ این نشونه‌ی خرابی نیست.</p>
-      </div>
-      <div class="faq-item">
-        <h3 data-i18n="faq.q3">آیا استفاده از netTAPESH رایگانه؟</h3>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faq.q3">آیا استفاده از netTAPESH رایگانه؟</summary>
         <p data-i18n="faq.a3">بله، کاملاً رایگان و بدون نیاز به ثبت‌نام یا نصب اپلیکیشنه.</p>
-      </div>
-      <div class="faq-item">
-        <h3 data-i18n="faq.q4">تست پیوسته چیه؟</h3>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faq.q4">تست پیوسته چیه؟</summary>
         <p data-i18n="faq.a4">به‌جای یه تست یک‌باره، پینگ، دانلود و آپلود رو به‌صورت پشت‌سرهم و زنده اندازه‌گیری می‌کنه — برای دیدن نوسان و پایداری اتصال در طول زمان (مثلاً حین بازی آنلاین یا تماس تصویری) مفیده.</p>
-      </div>
-      <div class="faq-item">
-        <h3 data-i18n="faq.q5">چند بار می‌شه تست گرفت؟</h3>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faq.q5">چند بار می‌شه تست گرفت؟</summary>
         <p data-i18n="faq.a5">محدودیت خاصی برای استفاده‌ی معمولی نیست؛ فقط برای جلوگیری از سوءاستفاده، تعداد درخواست در دقیقه محدوده.</p>
-      </div>
+      </details>
     </section>
   </main>
 
@@ -363,6 +369,10 @@
         <a href="#" data-tab-link="continuousPing">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <span data-i18n="tab.continuousPing">تست پیوسته</span>
+        </a>
+        <a href="https://mehrshadfasaei.github.io/mehrshadfasaei.com/" target="_blank" rel="noopener noreferrer">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke-linecap="round"/></svg>
+          <span data-i18n="footer.resume">رزومه‌ی سازنده</span>
         </a>
       </div>
     </div>

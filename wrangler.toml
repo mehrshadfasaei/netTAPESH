@@ -62,7 +62,18 @@ period = 60
 name = "RL_UPLOAD"
 namespace_id = "1004"
 [ratelimits.simple]
-limit = 180
+# Was 180 — badly undersized for how the upload test actually behaves.
+# 4 parallel lanes x 4MB chunks (UPLOAD_CHUNK_BYTES) means even a
+# moderately fast connection bursts past 180 requests within the single
+# 8s test window alone (a 200 Mbps upload needs ~200 requests just for
+# ONE test), before the 60s window even matters. Every faster-than-that
+# user got rate-limited mid-test — and since the client previously
+# didn't check response status (see xhrUploadOnce() in speedtest.js,
+# now fixed), those 429s silently counted as "successful" near-zero-
+# byte requests, tanking the reported speed to ~0. Raised generously
+# (comfortably covers a multi-gigabit connection's burst within one
+# test window) while still bounding sustained abuse.
+limit = 3000
 period = 60
 
 [[ratelimits]]
@@ -152,7 +163,7 @@ period = 60
 name = "RL_UPLOAD"
 namespace_id = "2004"
 [env.staging.ratelimits.simple]
-limit = 180
+limit = 3000
 period = 60
 
 [[env.staging.ratelimits]]

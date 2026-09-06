@@ -138,7 +138,12 @@ def speedtest_download(request: Request, bytes: int = Query(default=None, ge=1))
 
 
 @router.post("/speedtest/upload")
-@limiter.limit("180/minute")
+# Was 180/minute — badly undersized for how the upload test actually
+# behaves. 4 parallel lanes x 4MB chunks means even a moderately fast
+# connection bursts past 180 requests within the single 8s test window
+# alone; see the matching comment on RL_UPLOAD in wrangler.toml (the
+# Cloudflare Worker port of this same endpoint) for the full math.
+@limiter.limit("3000/minute")
 async def speedtest_upload(request: Request):
     """Reads and discards the request body in chunks (never loads it all
     into memory at once), returns how many bytes it actually received.
