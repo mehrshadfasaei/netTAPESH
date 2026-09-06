@@ -10,7 +10,7 @@ import ipaddress
 import math
 import os
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 import httpx
@@ -74,7 +74,7 @@ _RANDOM_CHUNK = os.urandom(_CHUNK_SIZE)
 
 
 def _range_start(range_: RangeParam) -> datetime:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return now - (timedelta(days=1) if range_ == "day" else timedelta(days=7))
 
 
@@ -193,7 +193,7 @@ def _prune_history(session: Session) -> None:
     deployments use the equivalent pruneHistory() in
     worker/routes/result.js — kept in sync manually, per
     worker/README.md."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=settings.history_retention_days)
+    cutoff = datetime.now(UTC) - timedelta(days=settings.history_retention_days)
     session.execute(delete(SpeedtestLog).where(SpeedtestLog.timestamp < cutoff))
 
     total = session.execute(select(func.count()).select_from(SpeedtestLog)).scalar_one()
@@ -259,7 +259,7 @@ def _row_serialize_timestamp(ts: datetime) -> str:
     history chart by the viewer's UTC offset. Stamp UTC back on before
     formatting so the string is unambiguous."""
     if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
+        ts = ts.replace(tzinfo=UTC)
     return ts.isoformat()
 
 

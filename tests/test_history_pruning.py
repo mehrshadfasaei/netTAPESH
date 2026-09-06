@@ -4,7 +4,7 @@ and row count (settings.history_max_rows). Calls _prune_history directly
 rather than going through the API (it only runs on ~10% of /result calls
 in production, per random.random() < 0.1 at the call site — too flaky to
 rely on from outside)."""
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from backend import config
 from backend.api.routes import _prune_history
@@ -14,7 +14,7 @@ from backend.db.models import SpeedtestLog
 
 def _insert_row(session, *, days_old: float = 0):
     row = SpeedtestLog(
-        timestamp=datetime.now(timezone.utc) - timedelta(days=days_old),
+        timestamp=datetime.now(UTC) - timedelta(days=days_old),
         ping_ms=1.0,
         jitter_ms=1.0,
         download_mbps=1.0,

@@ -108,8 +108,14 @@ npx playwright install --with-deps chromium
 npx playwright test
 ```
 
-Both suites run automatically on every push/PR via GitHub Actions
-(`.github/workflows/ci.yml`).
+Linting (ruff — backend Python only):
+
+```bash
+ruff check .
+```
+
+All three (lint + both test suites) run automatically on every push/PR
+via GitHub Actions (`.github/workflows/ci.yml`).
 
 ## Deploying somewhere real
 
@@ -242,4 +248,5 @@ No PaaS-specific config needed — this repo's `Dockerfile` and
 
 - Per-deployment server picker if this is ever run from more than one
   location
-- CI (GitHub Actions): lint + test on every push
+- ~~CI (GitHub Actions): lint + test on every push~~ — done, see
+  `.github/workflows/ci.yml`

@@ -1,0 +1,26 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# Keep this narrow and high-signal: real bugs and obvious dead code, not
+# a style debate. Expanding later is easy; walking back an overzealous
+# ruleset that blocks every PR on day one is not.
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes (unused imports/vars, undefined names, etc.)
+    "I",   # isort (import order)
+    "B",   # flake8-bugbear (common real-bug patterns)
+    "UP",  # pyupgrade (modern Python idioms)
+]
+ignore = [
+    "E501",  # line length — handled by the formatter/reviewer judgment, not a hard fail
+    "B008",  # Depends(...) as a default argument is FastAPI's own idiom, not a bug
+]
+
+[tool.ruff.lint.per-file-ignores]
+# conftest.py deliberately imports after setting NETPULSE_DATABASE_URL —
+# the DB engine (backend/db/database.py) is created at import time, so
+# the env var has to land before backend.* is ever imported anywhere in
+# the process. See the module docstring.
+"tests/conftest.py" = ["E402"]
