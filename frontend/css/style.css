@@ -374,7 +374,16 @@ body {
   margin: 0 auto;
 }
 .speedo-svg { width: 100%; height: auto; display: block; }
+/* Dim, full-range backdrop — the colored .speedo-progress arc below
+   draws over this as the reading climbs, so the unfilled remainder
+   still reads as "track", not just empty space. */
 .speedo-track { fill: none; stroke: #232c42; stroke-width: 14; stroke-linecap: round; }
+/* Grows from the 0 mark to the live reading's angle (see
+   updateGauge()/resetGauge() in speedtest.js) — red -> orange -> yellow
+   -> green -> cyan (speedoTrackGrad, built alongside this in
+   buildSpeedoSvg()) instead of one flat color, so how far the color
+   ramp has filled in says roughly as much as the number underneath. */
+.speedo-progress { fill: none; stroke: url(#speedoTrackGrad); stroke-width: 14; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.35)); }
 .speedo-tick-major { stroke: #4a5570; stroke-width: 2; }
 .speedo-tick-minor { stroke: #313c58; stroke-width: 1; }
 .speedo-tick-label { fill: var(--text-dim); font-size: 11px; text-anchor: middle; dominant-baseline: middle; }
@@ -384,7 +393,7 @@ body {
   stroke-linecap: round;
   transform-box: fill-box;
   transform-origin: 50% 100%;
-  transition: transform 0.2s ease-out;
+  transition: transform 0.2s ease-out, filter 0.2s ease-out;
 }
 .speedo-hub { fill: #cbd5e1; }
 
@@ -403,6 +412,10 @@ body {
   font-weight: 700;
   color: var(--text);
   font-variant-numeric: tabular-nums;
+  /* Tinted + glowed to match the live reading while a test runs (see
+     updateGauge() in speedtest.js); transitions back to the default
+     --text color/no glow on reset. */
+  transition: color 0.2s ease-out, text-shadow 0.2s ease-out;
 }
 .speedo-unit {
   display: flex;

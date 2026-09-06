@@ -457,15 +457,47 @@
   const SPEEDO_CENTER = { x: 110, y: 110 };
   const SPEEDO_RADIUS = 88;
 
-  function speedToAngle(mbpsValue) {
+  // Slow -> fast color ramp, one entry per GAUGE_TICKS index (same
+  // non-linear value spacing, even angular spacing) — red at 0 Mbps
+  // through orange/yellow/lime/green up to a cyan "blazing fast" at the
+  // top of the dial, instead of one flat gray track. Drives both the
+  // gradient track (see buildSpeedoSvg()) and the live needle/readout
+  // tint (see valueToColor() below).
+  const GAUGE_COLORS = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#06b6d4", "#38bdf8"];
+
+  // Shared by speedToAngle() and valueToColor() — both map a speed to a
+  // 0..1 position along the tick scale, they just interpolate a
+  // different thing (angle vs. color) at that position.
+  function valueToFrac(mbpsValue) {
     const v = Math.max(0, Math.min(mbpsValue, GAUGE_TICKS[GAUGE_TICKS.length - 1]));
     let i = 0;
     while (i < GAUGE_TICKS.length - 2 && v > GAUGE_TICKS[i + 1]) i++;
     const segStart = GAUGE_TICKS[i];
     const segEnd = GAUGE_TICKS[i + 1];
     const segFrac = segEnd > segStart ? (v - segStart) / (segEnd - segStart) : 0;
-    const idxFrac = (i + segFrac) / (GAUGE_TICKS.length - 1);
-    return GAUGE_START_DEG + idxFrac * (GAUGE_END_DEG - GAUGE_START_DEG);
+    return (i + segFrac) / (GAUGE_TICKS.length - 1);
+  }
+
+  function speedToAngle(mbpsValue) {
+    return GAUGE_START_DEG + valueToFrac(mbpsValue) * (GAUGE_END_DEG - GAUGE_START_DEG);
+  }
+
+  function lerpColor(hexA, hexB, t) {
+    const a = parseInt(hexA.slice(1), 16);
+    const b = parseInt(hexB.slice(1), 16);
+    const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255;
+    const br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255;
+    const r = Math.round(ar + (br - ar) * t);
+    const g = Math.round(ag + (bg - ag) * t);
+    const bl = Math.round(ab + (bb - ab) * t);
+    return `rgb(${r}, ${g}, ${bl})`;
+  }
+
+  function valueToColor(mbpsValue) {
+    const idxFloat = valueToFrac(mbpsValue) * (GAUGE_COLORS.length - 1);
+    const i0 = Math.floor(idxFloat);
+    const i1 = Math.min(i0 + 1, GAUGE_COLORS.length - 1);
+    return lerpColor(GAUGE_COLORS[i0], GAUGE_COLORS[i1], idxFloat - i0);
   }
 
   // angle 0 = straight up, positive = clockwise — matches how the
@@ -478,6 +510,17 @@
     };
   }
 
+  // SVG arc path between two angles (see polarPoint for the angle
+  // convention) — shared by the static background track and the
+  // colored progress arc that grows with the live reading.
+  function describeArc(angleFrom, angleTo, radius) {
+    const p1 = polarPoint(angleFrom, radius);
+    const p2 = polarPoint(angleTo, radius);
+    const largeArc = Math.abs(angleTo - angleFrom) > 180 ? 1 : 0;
+    const sweep = angleTo >= angleFrom ? 1 : 0;
+    return `M ${p1.x} ${p1.y} A ${radius} ${radius} 0 ${largeArc} ${sweep} ${p2.x} ${p2.y}`;
+  }
+
   function buildSpeedoSvg() {
     const svg = document.getElementById("speedoSvg");
     const svgNS = "http://www.w3.org/2000/svg";
@@ -487,14 +530,43 @@
       return node;
     };
 
-    // Background track arc.
-    const start = polarPoint(GAUGE_START_DEG, SPEEDO_RADIUS);
-    const end = polarPoint(GAUGE_END_DEG, SPEEDO_RADIUS);
+    // Background track arc — dim, full range, always visible as the
+    // "unfilled" backdrop the colored progress arc below draws over.
     svg.appendChild(
-      el("path", {
-        class: "speedo-track",
-        d: `M ${start.x} ${start.y} A ${SPEEDO_RADIUS} ${SPEEDO_RADIUS} 0 1 1 ${end.x} ${end.y}`,
-      })
+      el("path", { class: "speedo-track", d: describeArc(GAUGE_START_DEG, GAUGE_END_DEG, SPEEDO_RADIUS) })
+    );
+
+    // Track color gradient (defs), red -> cyan across GAUGE_COLORS —
+    // referenced by the progress arc below. userSpaceOnUse + explicit
+    // endpoints (not the default objectBoundingBox) for the same reason
+    // as speedoNeedleGrad further down: a diagonal line across the
+    // gauge's own coordinate space, independent of whatever partial arc
+    // happens to be stroked with it.
+    const trackStart = polarPoint(GAUGE_START_DEG, SPEEDO_RADIUS);
+    const trackEnd = polarPoint(GAUGE_END_DEG, SPEEDO_RADIUS);
+    const trackDefs = el("defs", {});
+    const trackGrad = el("linearGradient", {
+      id: "speedoTrackGrad",
+      gradientUnits: "userSpaceOnUse",
+      x1: trackStart.x,
+      y1: trackStart.y,
+      x2: trackEnd.x,
+      y2: trackEnd.y,
+    });
+    GAUGE_COLORS.forEach((color, i) => {
+      trackGrad.appendChild(el("stop", { offset: `${(i / (GAUGE_COLORS.length - 1)) * 100}%`, "stop-color": color }));
+    });
+    trackDefs.appendChild(trackGrad);
+    svg.appendChild(trackDefs);
+
+    // Progress arc — grows from GAUGE_START_DEG to the current reading's
+    // angle (see updateGauge()/resetGauge()), starts as a zero-length
+    // arc right at the start point. Colored by the gradient above, so
+    // as it grows it reveals more of the red->cyan ramp rather than one
+    // flat color — a glance at how much of the ramp is filled says
+    // roughly as much as the number does.
+    svg.appendChild(
+      el("path", { id: "speedoProgress", class: "speedo-progress", d: describeArc(GAUGE_START_DEG, GAUGE_START_DEG, SPEEDO_RADIUS) })
     );
 
     // Minor ticks — purely decorative texture between the major
@@ -558,6 +630,7 @@
   }
   buildSpeedoSvg();
   const speedoNeedleEl = document.getElementById("speedoNeedle");
+  const speedoProgressEl = document.getElementById("speedoProgress");
   const speedoUnitIconEl = document.getElementById("speedoUnitIcon");
   const speedoUnitLabelEl = document.getElementById("speedoUnitLabel");
 
@@ -575,12 +648,26 @@
 
   function resetGauge() {
     speedoNeedleEl.style.transform = `rotate(${GAUGE_START_DEG}deg)`;
+    speedoNeedleEl.style.filter = "none";
+    speedoProgressEl.setAttribute("d", describeArc(GAUGE_START_DEG, GAUGE_START_DEG, SPEEDO_RADIUS));
     gaugeLiveValue.textContent = "0.00";
+    gaugeLiveValue.style.color = "";
+    gaugeLiveValue.style.textShadow = "none";
   }
 
   function updateGauge(mbpsValue) {
-    speedoNeedleEl.style.transform = `rotate(${speedToAngle(mbpsValue)}deg)`;
+    const angle = speedToAngle(mbpsValue);
+    const color = valueToColor(mbpsValue);
+    speedoNeedleEl.style.transform = `rotate(${angle}deg)`;
+    // Tints the needle to match the live reading (on top of its own
+    // shine gradient, see speedoNeedleGrad) with a soft glow in the
+    // same color — small touch, but it's what turns "gray dial" into
+    // "this thing looks alive while a test is running".
+    speedoNeedleEl.style.filter = `drop-shadow(0 0 5px ${color})`;
+    speedoProgressEl.setAttribute("d", describeArc(GAUGE_START_DEG, angle, SPEEDO_RADIUS));
     gaugeLiveValue.textContent = mbpsValue.toFixed(2);
+    gaugeLiveValue.style.color = color;
+    gaugeLiveValue.style.textShadow = `0 0 16px ${color}`;
   }
 
   function mbps(bytes, seconds) {
