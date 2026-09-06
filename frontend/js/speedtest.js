@@ -423,16 +423,35 @@
       `;
     }).join("");
 
+    openResultsOverlay();
+  }
+
+  // .results-overlay is position: fixed and scrolls internally
+  // (overflow-y: auto), but that alone isn't enough on mobile — the
+  // PAGE underneath was still scrollable while the overlay sat on top
+  // of it, and scrolling it (a stray touch, or momentum from whatever
+  // scroll position the page was already at) could shift the fixed
+  // overlay's apparent position / trigger the browser's address-bar
+  // collapse, reading as "the overlay itself scrolled". Locking
+  // html/body scroll for as long as the overlay is open closes that
+  // off; resultsOverlay.scrollTop = 0 (kept from before) covers the
+  // separate case of the overlay's OWN internal scroll position
+  // surviving a hide/show toggle.
+  function openResultsOverlay() {
     resultsOverlay.hidden = false;
-    // .results-overlay scrolls internally (overflow-y: auto — see
-    // style.css) and toggling [hidden] doesn't reset that on its own,
-    // so if a previous view of the overlay was scrolled down, it would
-    // reopen at that same scroll position instead of the top.
     resultsOverlay.scrollTop = 0;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeResultsOverlay() {
+    resultsOverlay.hidden = true;
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
   }
 
   resultsCloseBtn.addEventListener("click", () => {
-    resultsOverlay.hidden = true;
+    closeResultsOverlay();
     // The main start button hides once a test completes (see runTest())
     // — closing the overlay without starting another test is the one
     // way back to it, otherwise there'd be no way to test again from
@@ -442,7 +461,7 @@
 
   const resultsRestartBtn = document.getElementById("resultsRestartBtn");
   resultsRestartBtn.addEventListener("click", () => {
-    resultsOverlay.hidden = true;
+    closeResultsOverlay();
     runTest();
   });
 
@@ -1100,18 +1119,6 @@
     });
   });
 
-  async function loadLatest() {
-    const res = await fetch("/api/speedtest/latest");
-    const data = await res.json();
-    if (!data.result) return;
-    const r = data.result;
-    if (r.ping_ms != null) rPing.textContent = r.ping_ms.toFixed(0);
-    if (r.jitter_ms != null) rJitter.textContent = r.jitter_ms.toFixed(1);
-    if (r.download_mbps != null) setDownloadDisplay(r.download_mbps);
-    if (r.upload_mbps != null) setUploadDisplay(r.upload_mbps);
-    resultMetaEl.textContent = t("result.last", { date: new Date(r.timestamp).toLocaleString(localeName()) });
-  }
-
   resetGauge();
 
   // ---- Tab nav ----
@@ -1324,8 +1331,10 @@
   // Apply the stored/default language now that every section above
   // (ping loop, history charts, etc.) it touches is initialized —
   // applyLanguage() itself reloads the history charts with correctly-
-  // localized labels; loadLatest() runs after it so the "last test"
-  // message it sets is in the right language too.
+  // localized labels. Deliberately does NOT load and display the last
+  // saved result on this reload (an earlier version did, via a now-
+  // removed loadLatest()) — every page load should start from a blank
+  // slate, not show a previous test's numbers before the visitor has
+  // run one themselves.
   applyLanguage(getStoredLang() === "en" ? "en" : "fa");
-  loadLatest();
 })();
