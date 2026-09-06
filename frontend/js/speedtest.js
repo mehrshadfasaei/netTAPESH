@@ -319,6 +319,10 @@
   const ispInfoEl = document.getElementById("ispInfo");
   const locationInfoEl = document.getElementById("locationInfo");
   const resultsOverlay = document.getElementById("resultsOverlay");
+  const pageHeaderEl = document.getElementById("pageHeader");
+  const tabNavEl = document.getElementById("tabNav");
+  const pageMainEl = document.getElementById("pageMain");
+  const siteFooterEl = document.getElementById("siteFooter");
   const resultsCloseBtn = document.getElementById("resultsCloseBtn");
   const resDown = document.getElementById("resDown");
   const resUp = document.getElementById("resUp");
@@ -439,28 +443,33 @@
     openResultsOverlay();
   }
 
-  // .results-overlay is position: fixed and scrolls internally
-  // (overflow-y: auto), but that alone isn't enough on mobile — the
-  // PAGE underneath was still scrollable while the overlay sat on top
-  // of it, and scrolling it (a stray touch, or momentum from whatever
-  // scroll position the page was already at) could shift the fixed
-  // overlay's apparent position / trigger the browser's address-bar
-  // collapse, reading as "the overlay itself scrolled". Locking
-  // html/body scroll for as long as the overlay is open closes that
-  // off; resultsOverlay.scrollTop = 0 (kept from before) covers the
-  // separate case of the overlay's OWN internal scroll position
-  // surviving a hide/show toggle.
+  // Two earlier approaches (position: fixed + its own overflow-y: auto,
+  // then that plus locking html/body scroll) both still ended up with
+  // some kind of nested/duplicate scroll behavior depending on the
+  // browser. Simplest fix, and literally what was asked for: don't
+  // give the overlay its own scroll container at all. Hide the rest of
+  // the page's content (header, tab nav, <main id="pageMain">, footer)
+  // while it's open, so the results overlay is the only thing on the
+  // page — sized by its own content, scrolled (only if actually taller
+  // than the window) by nothing but the browser's own default page
+  // scrollbar. window.scrollTo(0, 0) resets the page's scroll position
+  // itself, since whatever the user had scrolled to on the main page
+  // before starting a test would otherwise carry over.
   function openResultsOverlay() {
+    pageHeaderEl.hidden = true;
+    tabNavEl.hidden = true;
+    pageMainEl.hidden = true;
+    siteFooterEl.hidden = true;
     resultsOverlay.hidden = false;
-    resultsOverlay.scrollTop = 0;
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
+    window.scrollTo(0, 0);
   }
 
   function closeResultsOverlay() {
     resultsOverlay.hidden = true;
-    document.documentElement.style.overflow = "";
-    document.body.style.overflow = "";
+    pageHeaderEl.hidden = false;
+    tabNavEl.hidden = false;
+    pageMainEl.hidden = false;
+    siteFooterEl.hidden = false;
   }
 
   resultsCloseBtn.addEventListener("click", () => {

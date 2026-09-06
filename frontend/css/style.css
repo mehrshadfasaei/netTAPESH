@@ -101,6 +101,11 @@ body {
   justify-content: space-between;
   gap: 1rem;
 }
+/* Same specificity issue as .page/.btn-start/etc. elsewhere in this
+   file ([hidden] vs .topbar) — without this, "display: flex" wins and
+   hiding the header while the results overlay is open (see
+   openResultsOverlay() in speedtest.js) has no visible effect. */
+.topbar[hidden] { display: none; }
 
 /* On a narrow phone, brand + clock + language pill + theme toggle
    together don't fit .topbar's width — flex items don't shrink below
@@ -236,6 +241,12 @@ body {
   flex-direction: column;
   gap: 1.5rem;
 }
+/* Same specificity issue as .btn-start/.results-overlay/.side-info
+   elsewhere in this file ([hidden] vs .page) — without this, "display:
+   flex" wins and hiding <main id="pageMain"> while the results overlay
+   is open (see openResultsOverlay() in speedtest.js) has no visible
+   effect. */
+.page[hidden] { display: none; }
 
 /* Each tab (.page-tab) can hold more than one card (speed test tab:
    the test panel + the history card) — needs its own flex/gap, same
@@ -627,26 +638,22 @@ body {
 .chart-series-toggle-up input { accent-color: #33c07c; }
 
 /* ---- Results overlay (shown after a test completes) ---- */
+/* Deliberately NOT position: fixed with its own overflow-y: auto (an
+   earlier version was) — that made this panel its own independent
+   scroll container nested inside the page, which on some
+   desktop/browser combinations rendered oddly (reported: opening
+   scrolled to an unexpected spot) and always meant two separate
+   scrollable regions existing at once. Simpler and exactly what was
+   asked for instead: openResultsOverlay()/closeResultsOverlay() in
+   speedtest.js hide the rest of the page's content (<main class="page">
+   and the footer) while this is shown, so it's the only thing on the
+   page — sized by its own content, scrolled (if it's taller than the
+   window) by nothing but the browser's own default page scrollbar.
+   Zero custom scroll behavior. */
 .results-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
   background: var(--bg);
-  overflow-y: auto;
   display: flex;
   justify-content: center;
-  /* Without this, default align-items: stretch forces .results-panel to
-     exactly the overlay's height (100% of the viewport, since the
-     overlay is position: fixed; inset: 0). On mobile the panel's real
-     content (stats, quality dots, meta list, mini charts) is almost
-     always taller than the screen, so every column child's default
-     flex-shrink: 1 then compresses proportionally to force-fit that
-     artificial height — squashing the circular restart button (.btn-
-     start-sm, meant to stay 104x104px) into a flattened ~104x46px
-     oval, with its Persian label crammed into the squeeze. Letting the
-     panel size itself from its own content (and scroll via overflow-y
-     above, which is what it's for) fixes that. */
-  align-items: flex-start;
   padding: 2rem 1rem 3rem;
 }
 /* Same specificity as the rule above ([hidden] vs .results-overlay), so
