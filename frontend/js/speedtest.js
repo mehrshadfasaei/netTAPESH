@@ -858,6 +858,13 @@
   }
 
   async function runTest() {
+    // The continuous-ping tab hits these same /ping, /download, /upload
+    // endpoints in its own loop (see runPingLoop() below) — if it were
+    // left running during the main test, both would compete for the
+    // same bandwidth/connections and silently corrupt each other's
+    // numbers instead of erroring, which is worse. stopPingLoop() is a
+    // no-op if it isn't running.
+    stopPingLoop();
     speedoWrapEl.hidden = false; // reveal the dial now that a test is actually running
     runBtn.hidden = true; // hide the moment the test starts, not just once it finishes
     runBtn.disabled = true;
@@ -1277,12 +1284,21 @@
     }
   }
 
+  // Shared by the toggle button's click handler and runTest() (see
+  // above) — stopping the loop mid-round just lets its current
+  // pingLoopStep() finish and the while-loop in runPingLoop() exit
+  // rather than aborting anything in-flight, same as a manual stop.
+  function stopPingLoop() {
+    if (!pingLoopRunning) return;
+    pingLoopRunning = false;
+    pingLoopBtnLabelEl.textContent = t("pingtab.start");
+    pingLoopToggleBtn.classList.remove("running");
+    renderPingLoopChart();
+  }
+
   pingLoopToggleBtn.addEventListener("click", () => {
     if (pingLoopRunning) {
-      pingLoopRunning = false;
-      pingLoopBtnLabelEl.textContent = t("pingtab.start");
-      pingLoopToggleBtn.classList.remove("running");
-      renderPingLoopChart();
+      stopPingLoop();
       return;
     }
     pingLoopRunning = true;
