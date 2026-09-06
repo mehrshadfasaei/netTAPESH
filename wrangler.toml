@@ -85,3 +85,82 @@ namespace_id = "1007"
 [ratelimits.simple]
 limit = 60
 period = 60
+
+# Staging — a second, independent Worker (own name, so its own
+# workers.dev URL that never changes) deployed from the `staging`
+# branch, so changes can be checked at a stable address before they
+# ever reach nettapesh.ir. Set up on the Cloudflare dashboard side by
+# creating a second "nettapesh-staging" Worker connected to this same
+# GitHub repo with Production branch = staging (see worker/README.md).
+# Wrangler environments do NOT inherit top-level bindings automatically
+# — every binding above needs to be repeated here or it silently
+# wouldn't exist on the staging Worker.
+[env.staging]
+name = "nettapesh-staging"
+
+[env.staging.assets]
+directory = "./frontend"
+
+# Shares the SAME D1 database as production — deliberately: this is a
+# personal side project, not a team setup with separate staging data to
+# protect, and standing up a second database just to mirror schema.sql
+# into it isn't worth the extra step for what staging is actually for
+# here (checking that a change *works*, not testing against realistic
+# data volume).
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "nettapesh"
+database_id = "06d04b54-6f16-4819-9005-e60f6f1bfde6"
+
+# Separate namespace_ids from production's (2001-2007 vs 1001-1007) —
+# each binding is scoped to one Worker either way, but distinct IDs
+# keep it obvious at a glance which set belongs to which Worker if
+# they're ever viewed side by side in the dashboard.
+[[env.staging.ratelimits]]
+name = "RL_PING"
+namespace_id = "2001"
+[env.staging.ratelimits.simple]
+limit = 180
+period = 60
+
+[[env.staging.ratelimits]]
+name = "RL_CLIENT_INFO"
+namespace_id = "2002"
+[env.staging.ratelimits.simple]
+limit = 20
+period = 60
+
+[[env.staging.ratelimits]]
+name = "RL_DOWNLOAD"
+namespace_id = "2003"
+[env.staging.ratelimits.simple]
+limit = 60
+period = 60
+
+[[env.staging.ratelimits]]
+name = "RL_UPLOAD"
+namespace_id = "2004"
+[env.staging.ratelimits.simple]
+limit = 180
+period = 60
+
+[[env.staging.ratelimits]]
+name = "RL_RESULT"
+namespace_id = "2005"
+[env.staging.ratelimits.simple]
+limit = 20
+period = 60
+
+[[env.staging.ratelimits]]
+name = "RL_LATEST"
+namespace_id = "2006"
+[env.staging.ratelimits.simple]
+limit = 60
+period = 60
+
+[[env.staging.ratelimits]]
+name = "RL_HISTORY"
+namespace_id = "2007"
+[env.staging.ratelimits.simple]
+limit = 60
+period = 60

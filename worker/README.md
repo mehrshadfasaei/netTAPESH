@@ -85,3 +85,36 @@ Worker) before the API routes that use them will work.
   main speed test, run a continuous-ping round, and check both appear
   correctly (history, live gauge readings, ISP/location display) — all
   of it depends on this backend now.
+
+## Staging (checking a change before it reaches the real domain)
+
+`wrangler.toml`'s `[env.staging]` block is for a **second, independent
+Worker** deployed from the `staging` branch — its own name
+(`nettapesh-staging`), so its own workers.dev URL that never changes,
+completely separate from the production Worker `nettapesh.ir` points
+at. Set it up once:
+
+1. In the Cloudflare dashboard, **Compute (Workers)** → **Create** →
+   connect this same GitHub repo again, as a *second* Worker.
+2. Name it `nettapesh-staging` (must match `[env.staging].name` in
+   `wrangler.toml`).
+3. In that Worker's **Settings → Builds → Branch control**, set
+   **Production branch** to `staging` (not `main`) — this is what makes
+   it deploy from `staging` instead of `main`.
+4. Leave **Deploy command** as `npx wrangler deploy` (same default as
+   the production Worker) — since this Worker's own production branch
+   is `staging`, that command deploys `[env.staging]`'s config, not the
+   top-level one.
+
+After that, every push to `staging` redeploys `nettapesh-staging`
+automatically, live at `https://nettapesh-staging.<your workers.dev
+subdomain>.workers.dev` — check it there, and once it looks right,
+merge/fast-forward `staging` into `main` (or just push the same commits
+to `main`) to actually ship it.
+
+(Cloudflare also generates per-push "Version" preview URLs for
+non-production branches on the *same* Worker automatically — in
+principle a lighter-weight alternative to a whole second Worker, but
+finding that URL in the dashboard proved fiddly enough in practice
+that a dedicated `nettapesh-staging` Worker with a URL that never
+changes won out.)
