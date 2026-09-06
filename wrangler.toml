@@ -92,11 +92,15 @@ period = 60
 # ever reach nettapesh.ir. Set up on the Cloudflare dashboard side by
 # creating a second "nettapesh-staging" Worker connected to this same
 # GitHub repo with Production branch = staging (see worker/README.md).
-# Wrangler environments do NOT inherit top-level bindings automatically
-# — every binding above needs to be repeated here or it silently
-# wouldn't exist on the staging Worker.
+# Wrangler environments do NOT inherit top-level bindings/settings
+# automatically — every binding above needs to be repeated here or it
+# silently wouldn't exist on the staging Worker. Learned the hard way:
+# workers_dev = true up top did NOT carry over here either, leaving
+# this Worker with no workers.dev URL enabled at all ("No URLs
+# enabled" in the dashboard) until it was set again below.
 [env.staging]
 name = "netTSPPESHtest"
+workers_dev = true
 
 [env.staging.assets]
 directory = "./frontend"
