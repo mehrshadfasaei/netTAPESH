@@ -96,7 +96,7 @@ period = 60
 # — every binding above needs to be repeated here or it silently
 # wouldn't exist on the staging Worker.
 [env.staging]
-name = "nettapesh-staging"
+name = "netTSPPESHtest"
 
 [env.staging.assets]
 directory = "./frontend"
