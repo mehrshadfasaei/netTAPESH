@@ -13,13 +13,17 @@ function randomChunk() {
   return _randomChunk;
 }
 
-// Sized for the continuous-ping tab's probes only (500 KB per request —
-// see PING_LOOP_DOWNLOAD_BYTES in frontend/js/speedtest.js) — the main
-// speed test no longer uses this endpoint at all (it measures against
-// M-Lab directly, see speedtest.js's module docstring), so there's no
-// need for the old hundreds-of-MB ceiling the Python backend allowed.
-const DEFAULT_BYTES = 300_000;
-const MAX_BYTES = 5_000_000;
+// Deliberately large — the main speed test (see runParallelTest() in
+// frontend/js/speedtest.js) opens 4 of these in parallel and aborts
+// them once its 8s test window elapses, rather than waiting for any one
+// to finish; on a fast connection each stream needs enough bytes queued
+// up to still be flowing when the abort hits, or the test would measure
+// "how fast can I download 300KB" instead of real sustained throughput.
+// The continuous-ping tab's small probes (500 KB, see
+// PING_LOOP_DOWNLOAD_BYTES) pass their own `bytes=` and stay well under
+// this default.
+const DEFAULT_BYTES = 300_000_000;
+const MAX_BYTES = 500_000_000;
 
 export async function download(request, env) {
   const limited = await checkRateLimit(env, "RL_DOWNLOAD", request);

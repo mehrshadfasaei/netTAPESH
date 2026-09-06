@@ -11,13 +11,6 @@
        dependency at runtime. -->
   <script src="/js/vendor/chart.umd.js"></script>
   <script src="/js/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
-  <!-- ndt7-js (Apache-2.0, https://github.com/m-lab/ndt7-js) — the main
-       speed test itself runs against M-Lab's free, globally-distributed
-       measurement network instead of this app's own backend (see
-       runTest() in speedtest.js for why: it guarantees the test measures
-       international connection quality, not a same-country result, and
-       doesn't depend on our own backend being awake/reachable). -->
-  <script src="/js/vendor/ndt7/ndt7.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -122,23 +115,6 @@
             <span id="speedoUnitLabel">Mbps</span>
           </span>
         </div>
-      </div>
-
-      <!-- Which M-Lab server the test runs against — "خودکار" (default)
-           lets M-Lab's locate service pick whatever's nearest by
-           network path (not always Europe — see README); picking a
-           country asks for that country specifically (falls back to
-           "خودکار" automatically if none is healthy right now — see
-           locateNdt7Server() in speedtest.js). -->
-      <div class="server-pref-row">
-        <label for="serverPrefSelect" class="server-pref-label" data-i18n="server.label">سرور تست</label>
-        <select id="serverPrefSelect" class="server-pref-select">
-          <option value="" data-i18n="server.auto">خودکار (نزدیک‌ترین)</option>
-          <option value="DE" data-i18n="server.de">آلمان</option>
-          <option value="NL" data-i18n="server.nl">هلند</option>
-          <option value="FR" data-i18n="server.fr">فرانسه</option>
-          <option value="GB" data-i18n="server.gb">انگلستان</option>
-        </select>
       </div>
 
       <div class="gauge-row">
@@ -317,13 +293,8 @@
       <div class="results-meta-list">
         <div class="results-meta-row">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span data-i18n="results.server">سرور تست</span>
-          <!-- Set dynamically per test (see serverChosen in runNdt7Test(),
-               showResultsOverlay() in speedtest.js) — the actual M-Lab
-               server location, not a fixed string, so you can verify
-               which server a test really ran against instead of just
-               trusting the #serverPrefSelect choice above the gauge. -->
-          <span id="resServer" class="results-meta-value">—</span>
+          <span data-i18n="results.connection">اتصال</span>
+          <span class="results-meta-value" data-i18n="results.connectionValue">چندگانه (۴ کانکشن موازی)</span>
         </div>
         <div class="results-meta-row">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1" stroke-linecap="round"/></svg>

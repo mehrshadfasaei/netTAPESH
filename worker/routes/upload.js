@@ -3,10 +3,11 @@ import { checkRateLimit, jsonResponse } from "../shared.js";
 // Reads and discards the request body in chunks, returns how many bytes
 // it actually received. The client measures elapsed time against the
 // bytes *it sent*, not this response — this endpoint is just a sink.
-// Capped generously over the continuous-ping tab's 250 KB probe (see
-// PING_LOOP_UPLOAD_BYTES in frontend/js/speedtest.js) — the main test
-// no longer uses this endpoint at all.
-const CAP_BYTES = 2_000_000;
+// Capped with generous slack over one client chunk — the main test
+// (see UPLOAD_CHUNK_BYTES in frontend/js/speedtest.js) POSTs 4 MB
+// chunks in a loop; the continuous-ping tab's 250 KB probes stay well
+// under this too.
+const CAP_BYTES = 16_000_000;
 
 export async function upload(request, env) {
   const limited = await checkRateLimit(env, "RL_UPLOAD", request);

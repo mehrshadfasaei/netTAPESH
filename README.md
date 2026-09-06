@@ -4,60 +4,64 @@ An internet speed test — ping, download, and upload — built as a plain
 web page. No install, no app, no account: open the page, click the
 button, get real numbers.
 
-## Why not just Speedtest.net / fast.com?
+## Why self-hosted
 
-Public speed test sites measure your connection to *their* servers,
-picked automatically as whichever is "nearest" your connection —
-usually meaning a server inside your own country. That's the right
-number for "is my ISP giving me what I pay for", but it's the wrong
-number if what you actually care about is your connection's quality to
-the outside world (international routing, undersea cables, cross-border
-peering) — which is a real, separate question for anyone testing from a
-heavily-filtered or poorly-peered country. netTAPESH's main test
-answers that second question specifically: it measures against
-[M-Lab](https://www.measurementlab.net/)'s free, open, globally
-distributed measurement network (see `frontend/js/vendor/ndt7/`) —
-M-Lab's server-selection logic still picks whatever's "nearest" by
-network path, which won't always land in Europe specifically (could be
-the Middle East, Turkey, etc.), but in practice it's consistently
-somewhere outside the tester's own country's network, which is the
-point. Because the test runs entirely in the browser against M-Lab —
-not against this app's own backend — the result doesn't depend on
-where netTAPESH itself happens to be hosted: the site can live on cheap
-in-country hosting while the numbers it reports still reflect
-international connection quality.
+Public speed test sites (Speedtest.net, fast.com) measure your
+connection to *their* servers, which may be far away or congested in
+ways that don't reflect your actual day-to-day connection to whatever
+you host yourself. Running your own copy means the download/upload
+servers are wherever *you* deploy this — with the same interface people
+already know.
 
-netTAPESH is a public, non-profit measurement platform, not a private
-company's product — using it means results (metrics + client IP)
-become part of M-Lab's public open dataset (see their
-[data policy](https://www.measurementlab.net/data-policy/)) — worth
-knowing before pointing real users at it.
+An earlier version of this README described a different approach: the
+main test ran against [M-Lab](https://www.measurementlab.net/)'s public
+network instead of this app's own backend, specifically to measure
+international connection quality regardless of where netTAPESH itself
+was hosted. That was reverted — M-Lab's servers turned out to be
+unreachable without a VPN for testers in the app's actual target
+market, which defeated the point of a test people could run without
+one. Proxying M-Lab traffic through this app's own backend was
+considered and rejected too: it would make the measured "speed" reflect
+the proxy's own (excellent) connectivity rather than the tester's real
+one, which is worse than just being self-hosted honestly. Self-hosted
+on Cloudflare (see below) is a reasonable middle ground: Cloudflare has
+no PoPs inside Iran, so the nearest edge a tester actually reaches is
+still genuinely outside the country, without needing a VPN — just not
+adjustable to a specific country the way M-Lab's server picker was.
 
 ## How it works
 
-**Main test** ("تست سرعت" tab): runs [ndt7](https://github.com/m-lab/ndt7-js)
-(vendored locally, not loaded from a CDN) entirely client-side against
-M-Lab's network — locates a server, then runs a ~10s download and ~10s
-upload over WebSocket, both reported live as they run. "Ping" is
-approximated from the server's periodic TCPInfo round-trip-time reports
-during the download (M-Lab has no separate idle-ping phase the way this
-app's own backend does — see below) — occasionally unavailable, in
-which case the UI shows "—" for ping/jitter rather than a made-up
-number.
+The server has three endpoints, and does no timing itself — all the
+actual measurement happens in the browser, following the same
+methodology real speed test services use (not naive single-request
+timing):
 
-**Continuous ping tab**: a genuinely different, separate feature — it
-deliberately tests the connection to *this app's own server*, not
-international quality, so it keeps its own backend endpoints instead:
+- `GET /api/speedtest/ping` — returns instantly. Measured *first*, via
+  10 sequential round trips while the link is idle (median = ping,
+  average deviation = jitter) — not during the download/upload tests,
+  which would inflate it with queuing delay from the load itself.
+- `GET /api/speedtest/download` — streams a large amount of random data
+  (default 300 MB, capped at 500 MB per stream — see config). The client
+  opens **4 of these in parallel** and **aborts them once an 8-second
+  test window elapses**, rather than waiting for any one to finish: a
+  single TCP stream often can't saturate a fast link (window scaling and
+  congestion control cap one stream's throughput well below the link's
+  real capacity), so real tools use several streams at once. The first
+  second of the window is discarded from the Mbps calculation — TCP's
+  slow-start ramp-up otherwise under-reports steady-state speed.
+- `POST /api/speedtest/upload` — reads and discards whatever's sent to
+  it. The client runs **4 parallel lanes**, each looping fixed-size
+  (4 MB) chunk uploads until the same 8-second window (with the same
+  1-second warm-up discount) elapses.
 
-- `GET /api/speedtest/ping` — returns instantly, used both for repeated
-  round-trip timing and, in the continuous-ping tab, a rapid-fire
-  ping/download/upload loop.
-- `GET /api/speedtest/download` / `POST /api/speedtest/upload` — small,
-  fast probes sized for that loop (not the main test's methodology).
+The continuous-ping tab uses the same `/ping`, `/download`, `/upload`
+endpoints in a rapid-fire loop with much smaller probes — a genuinely
+different feature (it's about *this app's own server's* responsiveness,
+not a full throughput test), sharing the endpoints rather than the
+methodology.
 
-Results from the main test are optionally saved
-(`POST /api/speedtest/result`) so the dashboard can show a history
-chart.
+Results are optionally saved (`POST /api/speedtest/result`) so the
+dashboard can show a history chart.
 
 ## Running locally
 
@@ -86,12 +90,9 @@ Put this behind TLS (`https://`) rather than serving it plain — nothing
 in the app assumes a particular domain or port, so any of the options
 below work.
 
-Where you host this only matters for the **continuous-ping tab** and
-**history** (both genuinely test/depend on *this app's own server* —
-see the module docstring at the top of `frontend/js/speedtest.js`). The
-**main speed test doesn't care where you host it at all** — it measures
-against M-Lab's network directly from the browser, not against this
-app's backend.
+Because accuracy depends on the server actually being reachable at
+realistic latency from wherever you're testing from, this is meant to
+run on a real host, not just `localhost`.
 
 ### Cloudflare (recommended — free, and not filtered from Iran the way
 most PaaS hosts are)
@@ -102,10 +103,12 @@ JavaScript port of `backend/api/routes.py`, built to run as a
 [Cloudflare Worker with a static-assets
 binding](https://developers.cloudflare.com/workers/static-assets/) —
 static frontend and API served from the same Cloudflare domain, no
-separate server to keep running, no cold-start sleep. **Not verified
-against a real Cloudflare account from this dev environment** (no
-network egress to Cloudflare's API here) — follow `worker/README.md`'s
-steps on your own machine and report back if anything doesn't match.
+separate server to keep running, no cold-start sleep, reachable without
+a VPN from networks that block most other hosts. Cloudflare has no
+PoPs inside Iran, so the edge a tester actually reaches is still
+genuinely outside the country — a reasonable proxy for international
+connection quality, just not one you can point at a specific country
+the way a dedicated measurement network could.
 
 ### Render.com (free tier)
 
@@ -140,15 +143,17 @@ platform's "deploy from GitHub repo" flow at this repo; no extra config
 needed beyond what's already in the `Dockerfile`. Same persistent-disk
 caveat as Render applies unless you attach a volume.
 
-### A VPS
+### A VPS (recommended if accuracy matters)
 
-Gives you full control and a persistent disk, at the cost of actually
-paying for and maintaining a server — worth it if Cloudflare's free
-tier's limits (D1's row/request quotas, Workers' request-count cap) ever
-become a real constraint, or if you'd rather self-host the backend for
-its own sake. Doesn't affect the main test's accuracy the way it would
-have before the M-Lab migration (see above) — only the continuous-ping
-tab and history depend on the backend's own location/uptime.
+This is genuinely the best option for a speed test, not just a
+fallback: a free-tier PaaS gives you no control over *where* the server
+sits, and for measuring your own connection, the server's location
+relative to you is the whole point. Pick a VPS in the country/city you
+actually want to test against — an Iranian VPS to measure your real ISP
+speed inside Iran, a VPS elsewhere if that's what you actually want to
+test against. The trade-off against Cloudflare above is reachability
+without a VPN: a VPS you pick yourself might be filtered the way Render
+was, where Cloudflare's edge generally isn't.
 
 No PaaS-specific config needed — this repo's `Dockerfile` and
 `docker-compose.yml` already do everything:

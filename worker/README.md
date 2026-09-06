@@ -81,10 +81,7 @@ Worker) before the API routes that use them will work.
 
 - Point your domain's DNS at the Worker (**Settings → Domains &
   Routes** for the Worker) instead of at Render.
-- Verify each endpoint works: `/health`, `/api/speedtest/ping`, run a
-  continuous-ping round, run the main test and check it appears in
-  history. The main speed test itself doesn't touch any of this (it
-  talks to M-Lab directly — see `speedtest.js`'s module docstring), so
-  it'll work even before any of the steps above are done; only history,
-  the ISP/location display, and the continuous-ping tab depend on this
-  backend.
+- Verify each endpoint works: `/health`, `/api/speedtest/ping`, run the
+  main speed test, run a continuous-ping round, and check both appear
+  correctly (history, live gauge readings, ISP/location display) — all
+  of it depends on this backend now.

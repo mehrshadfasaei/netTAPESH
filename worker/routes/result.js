@@ -1,8 +1,7 @@
 import { checkRateLimit, clientIp, jsonResponse } from "../shared.js";
 
 // Client submits its own computed numbers (all the actual timing
-// happens client-side — for the main test, against M-Lab directly; for
-// the continuous-ping tab, against /ping, /download, /upload above) so
+// happens client-side, against /ping, /download, /upload above) so
 // they show up in history.
 export async function result(request, env) {
   const limited = await checkRateLimit(env, "RL_RESULT", request);
