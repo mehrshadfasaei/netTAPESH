@@ -270,7 +270,77 @@
         </div>
       </section>
     </section>
+
+    <!-- ---- FAQ: outside both .page-tab sections above (so it's the
+         same on either tab), genuine Persian content answering real
+         questions about how this actually works — not filler. Doubles
+         as on-page SEO substance (search engines weight real visible
+         text, not just <meta> tags) and, via the matching FAQPage
+         JSON-LD below, a candidate for a Google rich result (expandable
+         Q&A directly in search results). Content here and in that
+         JSON-LD MUST stay in sync — see applyLanguage() in
+         speedtest.js, which only updates this visible section; the
+         JSON-LD is fixed to Persian regardless of the page's live
+         language, since Google indexes what the page renders by
+         default on first load. -->
+    <section class="faq-section" id="faqSection">
+      <h2 class="faq-title" data-i18n="faq.title">سوالات متداول</h2>
+      <div class="faq-item">
+        <h3 data-i18n="faq.q1">تست سرعت اینترنت netTAPESH چطور کار می‌کنه؟</h3>
+        <p data-i18n="faq.a1">برخلاف بیشتر ابزارهای تست سرعت که به سرورهای یه شرکت دیگه وصل می‌شن، netTAPESH پینگ، دانلود و آپلود رو مستقیماً در برابر همین سروری که الان بازش کردی اندازه‌گیری می‌کنه — بدون نصب برنامه و بدون ساختن حساب کاربری.</p>
+      </div>
+      <div class="faq-item">
+        <h3 data-i18n="faq.q2">چرا عدد پینگ توی این تست با اپ‌های دیگه فرق داره؟</h3>
+        <p data-i18n="faq.a2">پینگ همیشه به مقصد بستگی داره — هر سرویس تست سرعت به یه سرور متفاوت وصل می‌شه، پس عددهای پینگ بین ابزارهای مختلف طبیعتاً یکی نیستن؛ این نشونه‌ی خرابی نیست.</p>
+      </div>
+      <div class="faq-item">
+        <h3 data-i18n="faq.q3">آیا استفاده از netTAPESH رایگانه؟</h3>
+        <p data-i18n="faq.a3">بله، کاملاً رایگان و بدون نیاز به ثبت‌نام یا نصب اپلیکیشنه.</p>
+      </div>
+      <div class="faq-item">
+        <h3 data-i18n="faq.q4">تست پیوسته چیه؟</h3>
+        <p data-i18n="faq.a4">به‌جای یه تست یک‌باره، پینگ، دانلود و آپلود رو به‌صورت پشت‌سرهم و زنده اندازه‌گیری می‌کنه — برای دیدن نوسان و پایداری اتصال در طول زمان (مثلاً حین بازی آنلاین یا تماس تصویری) مفیده.</p>
+      </div>
+      <div class="faq-item">
+        <h3 data-i18n="faq.q5">چند بار می‌شه تست گرفت؟</h3>
+        <p data-i18n="faq.a5">محدودیت خاصی برای استفاده‌ی معمولی نیست؛ فقط برای جلوگیری از سوءاستفاده، تعداد درخواست در دقیقه محدوده.</p>
+      </div>
+    </section>
   </main>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "تست سرعت اینترنت netTAPESH چطور کار می‌کنه؟",
+        "acceptedAnswer": { "@type": "Answer", "text": "برخلاف بیشتر ابزارهای تست سرعت که به سرورهای یه شرکت دیگه وصل می‌شن، netTAPESH پینگ، دانلود و آپلود رو مستقیماً در برابر همین سروری که الان بازش کردی اندازه‌گیری می‌کنه — بدون نصب برنامه و بدون ساختن حساب کاربری." }
+      },
+      {
+        "@type": "Question",
+        "name": "چرا عدد پینگ توی این تست با اپ‌های دیگه فرق داره؟",
+        "acceptedAnswer": { "@type": "Answer", "text": "پینگ همیشه به مقصد بستگی داره — هر سرویس تست سرعت به یه سرور متفاوت وصل می‌شه، پس عددهای پینگ بین ابزارهای مختلف طبیعتاً یکی نیستن؛ این نشونه‌ی خرابی نیست." }
+      },
+      {
+        "@type": "Question",
+        "name": "آیا استفاده از netTAPESH رایگانه؟",
+        "acceptedAnswer": { "@type": "Answer", "text": "بله، کاملاً رایگان و بدون نیاز به ثبت‌نام یا نصب اپلیکیشنه." }
+      },
+      {
+        "@type": "Question",
+        "name": "تست پیوسته چیه؟",
+        "acceptedAnswer": { "@type": "Answer", "text": "به‌جای یه تست یک‌باره، پینگ، دانلود و آپلود رو به‌صورت پشت‌سرهم و زنده اندازه‌گیری می‌کنه — برای دیدن نوسان و پایداری اتصال در طول زمان (مثلاً حین بازی آنلاین یا تماس تصویری) مفیده." }
+      },
+      {
+        "@type": "Question",
+        "name": "چند بار می‌شه تست گرفت؟",
+        "acceptedAnswer": { "@type": "Answer", "text": "محدودیت خاصی برای استفاده‌ی معمولی نیست؛ فقط برای جلوگیری از سوءاستفاده، تعداد درخواست در دقیقه محدوده." }
+      }
+    ]
+  }
+  </script>
 
   <footer class="site-footer" id="siteFooter">
     <div class="footer-inner">

@@ -925,6 +925,34 @@ body {
   .stat-block-value { font-size: 2.2rem; }
 }
 
+/* ---- FAQ (see #faqSection in index.html) — sits below both tabs,
+   same on either one. Quieter than the app UI above it (smaller text,
+   no cards/borders) since it's reference content, not something a
+   returning user needs to see every time — but real, readable text,
+   not a footnote. ---- */
+.faq-section {
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+  margin-top: 1rem;
+}
+.faq-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 1.25rem;
+}
+.faq-item + .faq-item { margin-top: 1.25rem; }
+.faq-item h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 0.4rem;
+}
+.faq-item p {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.7;
+  margin: 0;
+}
+
 /* ---- Footer ---- */
 .site-footer {
   border-top: 1px solid var(--border);
