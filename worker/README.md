@@ -90,17 +90,22 @@ Worker) before the API routes that use them will work.
 
 `wrangler.toml`'s `[env.staging]` block is for a **second, independent
 Worker** deployed from the `staging` branch — its own name
-(`netTSPPESHtest`, matching whatever name it was actually created with
-in the dashboard), so its own workers.dev URL that never changes,
+(`nettapeshtest`), so its own workers.dev URL that never changes,
 completely separate from the production Worker `nettapesh.ir` points
 at. Set it up once:
 
 1. In the Cloudflare dashboard, **Compute (Workers)** → **Create** →
    connect this same GitHub repo again, as a *second* Worker.
 2. Whatever name it's given here MUST exactly match `[env.staging].name`
-   in `wrangler.toml` (currently `netTSPPESHtest`) — if you name it
+   in `wrangler.toml` (currently `nettapeshtest`) — if you name it
    something else, update `[env.staging].name` in `wrangler.toml` to
-   match, on both `main` and `staging`.
+   match, on both `main` and `staging`. **Must be lowercase with dashes
+   only** — Wrangler rejects anything else at deploy time ("Expected
+   'name' to be ... lowercase with dashes only"); if the dashboard
+   silently lowercases/normalizes whatever you typed (it did here:
+   typed as `netTSPPESHtest`, ended up `nettapeshtest`), use the
+   *actual* resulting name shown in the dashboard's breadcrumb, not
+   what you typed.
 3. In that Worker's **Settings → Builds → Branch control**, set
    **Production branch** to `staging` (not `main`) — this makes it
    build from `staging` instead of `main`.
@@ -115,7 +120,7 @@ at. Set it up once:
    not what we want.
 
 After that, every push to `staging` redeploys this Worker
-automatically, live at `https://netTSPPESHtest.<your workers.dev
+automatically, live at `https://nettapeshtest.<your workers.dev
 subdomain>.workers.dev` — check it there, and once it looks right,
 merge/fast-forward `staging` into `main` (or just push the same commits
 to `main`) to actually ship it.

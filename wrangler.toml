@@ -99,7 +99,14 @@ period = 60
 # this Worker with no workers.dev URL enabled at all ("No URLs
 # enabled" in the dashboard) until it was set again below.
 [env.staging]
-name = "netTSPPESHtest"
+# Must be lowercase/dashes-only — Wrangler rejects anything else
+# ("Expected 'name' to be ... lowercase with dashes only"), which is
+# exactly what broke every staging deploy until this: the Worker was
+# created in the dashboard as "netTSPPESHtest" (mixed case), Cloudflare
+# silently lowercased it to "nettapeshtest" for the actual resource
+# (visible in the dashboard's own breadcrumb), but this file still had
+# the original mixed-case string wrangler.toml itself refuses to accept.
+name = "nettapeshtest"
 workers_dev = true
 
 [env.staging.assets]
