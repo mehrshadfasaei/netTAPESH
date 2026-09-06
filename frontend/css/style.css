@@ -479,6 +479,30 @@ body {
   font-size: 0.9rem;
 }
 
+/* Real per-phase progress — width is set directly from actual elapsed
+   time/completed samples (see setTestProgress() in speedtest.js), not
+   a decorative CSS animation. Resets to 0 and refills for each of
+   ping/download/upload. */
+.test-progress-track {
+  width: 100%;
+  max-width: 320px;
+  margin: 0.5rem auto 0;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.test-progress-track[hidden] { display: none; }
+.test-progress-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--accent);
+  /* Short linear transition smooths the ~200ms step between ticks into
+     a continuous-looking fill instead of visibly jumping. */
+  transition: width 0.2s linear;
+}
+
 .hint { font-size: 0.8rem; color: var(--text-dim); text-align: center; }
 
 /* Flat, not boxed — the whole page is one background color (var(--bg));

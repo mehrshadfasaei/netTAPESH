@@ -292,6 +292,17 @@
   const runBtn = document.getElementById("runBtn");
   const runBtnLabel = document.getElementById("runBtnLabel");
   const testPhaseEl = document.getElementById("testPhase");
+  const testProgressTrackEl = document.getElementById("testProgressTrack");
+  const testProgressBarEl = document.getElementById("testProgressBar");
+
+  // Sets the real per-phase progress bar's fill — `fraction` is always
+  // derived from actual elapsed time or completed samples (see the
+  // call sites in measurePing()/runParallelTest() below), never a
+  // fake/looping animation. Clamped since a slow final tick can land
+  // fractionally past 1 right as a phase's timer/count finishes.
+  function setTestProgress(fraction) {
+    testProgressBarEl.style.width = `${Math.max(0, Math.min(1, fraction)) * 100}%`;
+  }
   const rPing = document.getElementById("rPing");
   const rJitter = document.getElementById("rJitter");
   const rDown = document.getElementById("rDown");
@@ -734,12 +745,17 @@
   });
 
   // ---- Ping (sequential, before any load on the link) ----
-  async function measurePing() {
+  async function measurePing(onProgress) {
     const samples = [];
     for (let i = 0; i < PING_SAMPLES; i++) {
       const t0 = performance.now();
       await fetch("/api/speedtest/ping", { cache: "no-store" });
       samples.push(performance.now() - t0);
+      // Real progress — one completed round trip out of PING_SAMPLES
+      // total, not a time-based guess (ping's total duration isn't
+      // known in advance, unlike the fixed-duration download/upload
+      // phases below).
+      if (onProgress) onProgress((i + 1) / PING_SAMPLES);
     }
     samples.sort((a, b) => a - b);
     const median = samples[Math.floor(samples.length / 2)];
@@ -755,7 +771,7 @@
    * warmup-adjusted Mbps so far. Returns the final Mbps, computed only
    * from bytes moved after WARMUP_MS (see module docstring point 4).
    */
-  async function runParallelTest(workerFn, onTick) {
+  async function runParallelTest(workerFn, onTick, onProgress) {
     let totalBytes = 0;
     let bytesAtWarmup = null;
     const t0 = performance.now();
@@ -763,6 +779,10 @@
 
     const tickTimer = setInterval(() => {
       const elapsedMs = performance.now() - t0;
+      // Real progress — actual elapsed time against the fixed test
+      // window, same clock the abort timer below uses to end the
+      // phase, not a separate/fake estimate.
+      if (onProgress) onProgress(elapsedMs / TEST_DURATION_MS);
       if (bytesAtWarmup === null && elapsedMs >= WARMUP_MS) {
         bytesAtWarmup = totalBytes;
       }
@@ -783,6 +803,11 @@
 
     clearInterval(tickTimer);
     clearTimeout(abortTimer);
+    // The interval above stops ticking once the lanes actually finish
+    // settling, which can land a hair under 1 (e.g. a slightly-late
+    // final tick, or lanes wrapping up right after one) — snap to
+    // exactly full since the phase genuinely is done at this point.
+    if (onProgress) onProgress(1);
 
     const totalElapsedMs = performance.now() - t0;
     if (bytesAtWarmup === null) {
@@ -811,7 +836,7 @@
   }
 
   function measureDownload() {
-    return runParallelTest(downloadLane, (v) => setDownloadDisplay(v, true));
+    return runParallelTest(downloadLane, (v) => setDownloadDisplay(v, true), setTestProgress);
   }
 
   // ---- Upload: N parallel lanes, each looping fixed-size chunk POSTs
@@ -866,7 +891,7 @@
   }
 
   function measureUpload() {
-    return runParallelTest(uploadLane, (v) => setUploadDisplay(v, true));
+    return runParallelTest(uploadLane, (v) => setUploadDisplay(v, true), setTestProgress);
   }
 
   async function saveResult(result) {
@@ -898,25 +923,30 @@
     setUploadDisplay(null);
     resultMetaEl.textContent = "";
     resetGauge();
+    testProgressTrackEl.hidden = false;
+    setTestProgress(0);
 
     try {
       testPhaseEl.textContent = t("testing.ping");
-      const { ping_ms, jitter_ms } = await measurePing();
+      const { ping_ms, jitter_ms } = await measurePing(setTestProgress);
       rPing.textContent = ping_ms.toFixed(0);
       rJitter.textContent = jitter_ms.toFixed(1);
 
       setSpeedoDirection("down");
       testPhaseEl.textContent = t("testing.download");
+      setTestProgress(0); // fresh bar per phase, same reasoning as resetGauge() below
       const download_mbps = await measureDownload();
       setDownloadDisplay(download_mbps);
 
       resetGauge(); // fresh scale for upload — often a very different range than download
       setSpeedoDirection("up");
       testPhaseEl.textContent = t("testing.upload");
+      setTestProgress(0);
       const upload_mbps = await measureUpload();
       setUploadDisplay(upload_mbps);
 
       testPhaseEl.textContent = "";
+      testProgressTrackEl.hidden = true;
       resultMetaEl.textContent = t("result.done", { date: new Date().toLocaleString(localeName()) });
 
       const result = { ping_ms, jitter_ms, download_mbps, upload_mbps };
@@ -929,6 +959,7 @@
       showResultsOverlay(result);
     } catch (e) {
       testPhaseEl.textContent = "";
+      testProgressTrackEl.hidden = true;
       resultMetaEl.textContent = t("result.error");
       resetGauge();
       // No results overlay (with its own restart button) shows on

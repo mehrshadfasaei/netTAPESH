@@ -135,6 +135,14 @@
 
       <div id="testPhase" class="test-phase"></div>
 
+      <!-- ---- Real per-phase progress bar: resets to 0 and fills as
+           each phase (ping/download/upload) actually elapses — not a
+           fake looping animation. See setTestProgress()/runTest() in
+           speedtest.js. Hidden outside of an active test. ---- -->
+      <div id="testProgressTrack" class="test-progress-track" hidden>
+        <div id="testProgressBar" class="test-progress-bar"></div>
+      </div>
+
       <div class="unit-toggle" id="unitToggle">
         <button data-unit="mbps" class="active">Mbps</button>
         <button data-unit="MBps">MB/s</button>
