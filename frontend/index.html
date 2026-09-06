@@ -3,9 +3,47 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>netTAPESH</title>
+  <title>netTAPESH — تست سرعت اینترنت رایگان و خودمیزبان</title>
+  <!-- Basic on-page SEO: description + canonical + Open Graph/Twitter
+       card, none of which existed before. This alone doesn't rank the
+       site — Google still needs to discover, crawl, and build up trust
+       (backlinks, real traffic) over time — but it's the baseline
+       every indexed page needs, and without it a search result would
+       show Google's own auto-picked (often awkward) snippet instead of
+       this. robots.txt/sitemap.xml (repo root of frontend/) point
+       crawlers here and list this page. -->
+  <meta name="description" content="اسپیدتست اینترنت خودمیزبان — بدون نصب، بدون حساب کاربری. پینگ، دانلود و آپلود مستقیماً در برابر همین سرور اندازه‌گیری می‌شه، با تست پیوسته و تاریخچه‌ی نتایج." />
+  <link rel="canonical" href="https://nettapesh.ir/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="netTAPESH" />
+  <meta property="og:title" content="netTAPESH — تست سرعت اینترنت رایگان و خودمیزبان" />
+  <meta property="og:description" content="اسپیدتست اینترنت خودمیزبان — بدون نصب، بدون حساب کاربری. پینگ، دانلود و آپلود مستقیماً در برابر همین سرور اندازه‌گیری می‌شه." />
+  <meta property="og:url" content="https://nettapesh.ir/" />
+  <meta property="og:locale" content="fa_IR" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="netTAPESH — تست سرعت اینترنت رایگان و خودمیزبان" />
+  <meta name="twitter:description" content="اسپیدتست اینترنت خودمیزبان — بدون نصب، بدون حساب کاربری. پینگ، دانلود و آپلود مستقیماً در برابر همین سرور اندازه‌گیری می‌شه." />
+  <meta name="theme-color" content="#0b0f1a" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/css/style.css" />
+  <!-- Structured data (schema.org) — tells Google this is a free web
+       app it can potentially show as a rich result (app name, "free",
+       category) instead of a plain blue link. Doesn't guarantee
+       ranking, but gives Google's crawler unambiguous machine-readable
+       facts about the page instead of having to infer them. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "netTAPESH",
+    "url": "https://nettapesh.ir/",
+    "description": "اسپیدتست اینترنت خودمیزبان — بدون نصب، بدون حساب کاربری. پینگ، دانلود و آپلود مستقیماً در برابر همین سرور اندازه‌گیری می‌شه.",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "inLanguage": ["fa", "en"]
+  }
+  </script>
   <!-- Vendored locally (not loaded from a CDN) so the page works fully
        offline / behind restrictive firewalls, with no external
        dependency at runtime. -->
