@@ -441,6 +441,16 @@
         <span data-i18n="start.button">شروع تست</span>
       </button>
 
+      <!-- Uses the Web Share API when the browser has it (mobile
+           browsers mostly — hands off to whatever share sheet/app the
+           OS offers); falls back to copying the same text to the
+           clipboard everywhere else. See shareResult() in
+           speedtest.js. -->
+      <button id="resultsShareBtn" class="btn-share" type="button">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-3.9M8.6 13.5l6.8 3.9" stroke-linecap="round"/></svg>
+        <span data-i18n="results.share">اشتراک‌گذاری نتیجه</span>
+      </button>
+
       <div class="results-meta-list">
         <div class="results-meta-row">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3" stroke-linecap="round" stroke-linejoin="round"/></svg>

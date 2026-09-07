@@ -112,6 +112,10 @@
       "results.isp": "ارائه‌دهنده",
       "results.ip": "آی‌پی شما",
       "results.location": "لوکیشن",
+      "results.share": "اشتراک‌گذاری نتیجه",
+      "share.text": "نتیجه‌ی تست سرعت اینترنتم با netTAPESH: ⬇ {download} {unit} دانلود، ⬆ {upload} {unit} آپلود، پینگ {ping} ms",
+      "share.copied": "کپی شد!",
+      "share.copyFailed": "کپی نشد",
       "quality.browsing": "وب‌گردی",
       "quality.gaming": "گیم آنلاین",
       "quality.streaming": "استریم ویدیو",
@@ -177,6 +181,10 @@
       "results.isp": "ISP",
       "results.ip": "Your IP",
       "results.location": "Location",
+      "results.share": "Share Result",
+      "share.text": "My internet speed test result with netTAPESH: ⬇ {download} {unit} down, ⬆ {upload} {unit} up, ping {ping} ms",
+      "share.copied": "Copied!",
+      "share.copyFailed": "Copy failed",
       "quality.browsing": "Web Browsing",
       "quality.gaming": "Online Gaming",
       "quality.streaming": "Video Streaming",
@@ -207,7 +215,11 @@
     const dict = I18N[currentLang] || I18N.fa;
     let str = dict[key] || I18N.fa[key] || key;
     if (vars) {
-      for (const [k, v] of Object.entries(vars)) str = str.replace(`{${k}}`, v);
+      // replaceAll, not replace — share.text uses {unit} twice (once
+      // for download, once for upload); a single .replace() would only
+      // fill in the first occurrence and leave the literal "{unit}" in
+      // the second.
+      for (const [k, v] of Object.entries(vars)) str = str.replaceAll(`{${k}}`, v);
     }
     return str;
   }
@@ -359,6 +371,7 @@
   const resLocation = document.getElementById("resLocation");
   const resultsQualityRow = document.getElementById("resultsQualityRow");
   const resultsTimestampEl = document.getElementById("resultsTimestamp");
+  const resultsShareBtn = document.getElementById("resultsShareBtn");
 
   // ---- Clock (top-right timestamp, like Ookla's) ----
   function updateNowStamp() {
@@ -440,7 +453,13 @@
     ).join("");
   }
 
+  // Kept in module scope (not just the DOM) so shareResult() below has
+  // the raw numbers to build its share text from — the DOM only has the
+  // already-formatted (unit-converted, rounded) display strings.
+  let lastShownResult = null;
+
   function showResultsOverlay(result) {
+    lastShownResult = result;
     resDown.textContent = formatSpeed(result.download_mbps);
     resUp.textContent = formatSpeed(result.upload_mbps);
     resPing.textContent = result.ping_ms.toFixed(0);
@@ -512,6 +531,62 @@
     closeResultsOverlay();
     runTest();
   });
+
+  // navigator.share() hands the OS its own share sheet (Telegram,
+  // WhatsApp, X/Twitter, "copy link", whatever's installed) — the
+  // right behavior on the mobile browsers that actually support it.
+  // Desktop browsers mostly don't, so there the fallback is copying
+  // the same text to the clipboard and flashing the button to confirm
+  // it worked, rather than silently doing nothing.
+  async function shareResult() {
+    if (!lastShownResult) return;
+    // Unit label isn't translated anywhere else in the app either (see
+    // the Mbps/MB/s toggle buttons) — same plain string in fa and en.
+    const text = t("share.text", {
+      download: formatSpeed(lastShownResult.download_mbps),
+      upload: formatSpeed(lastShownResult.upload_mbps),
+      ping: lastShownResult.ping_ms.toFixed(0),
+      unit: currentUnit === "MBps" ? "MB/s" : "Mbps",
+    });
+    const shareData = { title: "netTAPESH", text, url: location.origin };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (e) {
+        // AbortError = the user closed the share sheet without picking
+        // anything — not a failure, nothing to fall back to for.
+        if (e && e.name === "AbortError") return;
+        // Any other failure (share API present but this particular
+        // data type unsupported, etc.) — fall through to the clipboard
+        // fallback below instead of leaving the click looking like it
+        // did nothing.
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(`${text} ${location.origin}`);
+      flashShareButton("share.copied");
+    } catch (e) {
+      flashShareButton("share.copyFailed");
+    }
+  }
+
+  let shareFlashTimer = null;
+  function flashShareButton(messageKey) {
+    const labelEl = resultsShareBtn.querySelector("span");
+    const original = labelEl.textContent;
+    clearTimeout(shareFlashTimer);
+    labelEl.textContent = t(messageKey);
+    resultsShareBtn.classList.add("copied");
+    shareFlashTimer = setTimeout(() => {
+      labelEl.textContent = original;
+      resultsShareBtn.classList.remove("copied");
+    }, 2000);
+  }
+
+  resultsShareBtn.addEventListener("click", shareResult);
 
   // ---- Speedometer gauge (needle dial) ----
   // A non-linear tick scale, same idea as a real speedometer: equal
