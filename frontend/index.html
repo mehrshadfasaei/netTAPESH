@@ -73,9 +73,20 @@
   </script>
   <!-- Vendored locally (not loaded from a CDN) so the page works fully
        offline / behind restrictive firewalls, with no external
-       dependency at runtime. -->
-  <script src="/js/vendor/chart.umd.js"></script>
-  <script src="/js/vendor/chartjs-adapter-date-fns.bundle.min.js"></script>
+       dependency at runtime.
+
+       defer — these two together are ~255KB of JS; without defer the
+       browser has to fetch+parse+execute all of it before it can even
+       start building the DOM, which was directly delaying first paint
+       for a page whose gauge/start button don't need Chart.js at all
+       (only the history/continuous-ping charts further down do).
+       defer downloads them in parallel with HTML parsing instead and
+       only executes them right before DOMContentLoaded — same
+       guaranteed ordering (chart.umd.js, then the adapter, then
+       speedtest.js below, since deferred scripts always run in
+       document order), just no longer blocking. -->
+  <script src="/js/vendor/chart.umd.js" defer></script>
+  <script src="/js/vendor/chartjs-adapter-date-fns.bundle.min.js" defer></script>
 </head>
 <body>
   <header class="topbar" id="pageHeader">
@@ -509,6 +520,13 @@
     </div>
   </div>
 
-  <script src="/js/speedtest.js"></script>
+  <!-- defer here too (not just the two vendor scripts above) — same
+       reasoning, and it's what guarantees this still runs AFTER
+       chart.umd.js/the adapter despite them now being deferred as
+       well: browsers execute deferred scripts in document order,
+       whatever their tag position, so this being physically last is
+       what's actually relied on now, not "it happens to be at the
+       bottom of body". -->
+  <script src="/js/speedtest.js" defer></script>
 </body>
 </html>
