@@ -685,6 +685,12 @@ body {
 .chart-series-toggle-up { color: #33c07c; }
 .chart-series-toggle-down input { accent-color: #4f8cff; }
 .chart-series-toggle-up input { accent-color: #33c07c; }
+/* Ping overlay line on the history bar charts (see makeHistoryBarChart()
+   in speedtest.js) — amber, distinct from the download/upload blue/green
+   already in use so the two data types (Mbps bars vs ms line) stay
+   visually separable at a glance. */
+.chart-series-toggle-ping { color: var(--amber); }
+.chart-series-toggle-ping input { accent-color: var(--amber); }
 
 /* ---- Results overlay (shown after a test completes) ---- */
 /* Deliberately NOT position: fixed with its own overflow-y: auto (an

@@ -84,6 +84,7 @@
       "history.download": "دانلود (Mbps)",
       "history.upload": "آپلود (Mbps)",
       "history.empty": "هنوز تستی ثبت نشده — یه تست سرعت بزن تا اینجا نمودارش رو ببینی.",
+      "history.showPing": "پینگ",
       "pingtab.start": "شروع",
       "pingtab.stop": "توقف",
       "ping.rounds": "دورها",
@@ -153,6 +154,7 @@
       "history.download": "Download (Mbps)",
       "history.upload": "Upload (Mbps)",
       "history.empty": "No tests recorded yet — run a speed test to see it charted here.",
+      "history.showPing": "Ping",
       "pingtab.start": "Start",
       "pingtab.stop": "Stop",
       "ping.rounds": "Rounds",
@@ -1143,23 +1145,46 @@
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
 
+  // Ping is plotted as a line overlaid on the download/upload bars, on
+  // its own right-hand axis (ms, not Mbps) — lets you spot at a glance
+  // whether a slow result lined up with a ping spike, without needing
+  // a separate chart to cross-reference against. Amber (--amber) is
+  // used nowhere else in these two charts (blue/green already taken by
+  // download/upload), so the two data types stay visually separable.
   function makeHistoryBarChart(canvasId, color) {
     return new Chart(document.getElementById(canvasId).getContext("2d"), {
-      type: "bar",
       data: {
         labels: [],
         datasets: [
           {
+            type: "bar",
             data: [],
             backgroundColor: color,
             borderRadius: 4,
             maxBarThickness: 48,
+            order: 2,
+          },
+          {
+            type: "line",
+            data: [],
+            borderColor: themeVar("--amber"),
+            backgroundColor: themeVar("--amber"),
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.3,
+            yAxisID: "yPing",
+            order: 1,
           },
         ],
       },
       options: {
         responsive: true,
         animation: false,
+        // "index"+intersect:false — hovering anywhere along a given
+        // x position shows both the bar and the ping point together,
+        // rather than needing to land the cursor exactly on one or the
+        // other.
+        interaction: { mode: "index", intersect: false },
         scales: {
           x: { ticks: { color: themeVar("--text-dim") }, grid: { display: false } },
           y: {
@@ -1168,8 +1193,28 @@
             beginAtZero: true,
             title: { display: true, text: "Mbps", color: themeVar("--text-dim") },
           },
+          yPing: {
+            position: "right",
+            ticks: { color: themeVar("--amber") },
+            grid: { display: false }, // one grid (the Mbps axis') is enough
+            beginAtZero: true,
+            title: { display: true, text: "ms", color: themeVar("--amber") },
+          },
         },
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              // Exact value + unit, spelled out per line, instead of
+              // Chart.js's bare-number default.
+              label: (ctx) => {
+                if (ctx.parsed.y == null) return undefined;
+                const unit = ctx.dataset.yAxisID === "yPing" ? "ms" : "Mbps";
+                return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} ${unit}`;
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -1179,6 +1224,19 @@
   const historyEmptyEl = document.getElementById("historyEmpty");
   const historyChartDownBlockEl = document.getElementById("historyChartDownBlock");
   const historyChartUpBlockEl = document.getElementById("historyChartUpBlock");
+  const historyChartDownPingToggle = document.getElementById("historyChartDownPingToggle");
+  const historyChartUpPingToggle = document.getElementById("historyChartUpPingToggle");
+
+  function applyHistoryPingToggle(chart, toggleEl) {
+    chart.setDatasetVisibility(1, toggleEl.checked);
+    chart.update();
+  }
+  historyChartDownPingToggle.addEventListener("change", () =>
+    applyHistoryPingToggle(historyChartDown, historyChartDownPingToggle)
+  );
+  historyChartUpPingToggle.addEventListener("change", () =>
+    applyHistoryPingToggle(historyChartUp, historyChartUpPingToggle)
+  );
 
   // ---- Continuous-ping trend chart ----
   // Built once when a continuous-ping run is stopped (not live-updated
@@ -1246,6 +1304,15 @@
       chart.options.scales.y.ticks.color = themeVar("--text-dim");
       chart.options.scales.y.grid.color = themeVar("--border");
       chart.options.scales.y.title.color = themeVar("--text-dim");
+      // --amber itself changes between the light/dark palettes (see
+      // :root vs the light-mode override in style.css), not just
+      // --text-dim/--border — the ping line/axis needs the same
+      // re-read-on-toggle treatment as everything else here.
+      const amber = themeVar("--amber");
+      chart.options.scales.yPing.ticks.color = amber;
+      chart.options.scales.yPing.title.color = amber;
+      chart.data.datasets[1].borderColor = amber;
+      chart.data.datasets[1].backgroundColor = amber;
       chart.update();
     });
     pingLoopChart.options.scales.x.ticks.color = themeVar("--text-dim");
@@ -1300,12 +1367,22 @@
     const downRows = data.results.filter((r) => r.download_mbps != null);
     const upRows = data.results.filter((r) => r.upload_mbps != null);
 
+    // Dataset labels drive the tooltip text (see makeHistoryBarChart's
+    // tooltip.callbacks.label) — reassigned on every load, not just
+    // once at chart creation, so they stay correct across a language
+    // switch (applyLanguage() re-calls loadHistory()).
     historyChartDown.data.labels = downRows.map((r) => formatHistoryLabel(r.timestamp, range));
+    historyChartDown.data.datasets[0].label = t("stat.download");
     historyChartDown.data.datasets[0].data = downRows.map((r) => r.download_mbps);
+    historyChartDown.data.datasets[1].label = t("mini.ping");
+    historyChartDown.data.datasets[1].data = downRows.map((r) => r.ping_ms);
     historyChartDown.update();
 
     historyChartUp.data.labels = upRows.map((r) => formatHistoryLabel(r.timestamp, range));
+    historyChartUp.data.datasets[0].label = t("stat.upload");
     historyChartUp.data.datasets[0].data = upRows.map((r) => r.upload_mbps);
+    historyChartUp.data.datasets[1].label = t("mini.ping");
+    historyChartUp.data.datasets[1].data = upRows.map((r) => r.ping_ms);
     historyChartUp.update();
   }
 

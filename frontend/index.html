@@ -225,11 +225,23 @@
            on whether the fetched range actually has any rows. -->
       <div id="historyEmpty" class="history-empty" data-i18n="history.empty" hidden>هنوز تستی ثبت نشده — یه تست سرعت بزن تا اینجا نمودارش رو ببینی.</div>
       <div class="history-chart-block" id="historyChartDownBlock">
-        <h3 class="history-chart-title icon-down" data-i18n="history.download">دانلود (Mbps)</h3>
+        <div class="history-chart-head">
+          <h3 class="history-chart-title icon-down" data-i18n="history.download">دانلود (Mbps)</h3>
+          <label class="chart-series-toggle chart-series-toggle-ping">
+            <input type="checkbox" id="historyChartDownPingToggle" checked />
+            <span data-i18n="history.showPing">پینگ</span>
+          </label>
+        </div>
         <canvas id="historyChartDown" height="160"></canvas>
       </div>
       <div class="history-chart-block" id="historyChartUpBlock">
-        <h3 class="history-chart-title icon-up" data-i18n="history.upload">آپلود (Mbps)</h3>
+        <div class="history-chart-head">
+          <h3 class="history-chart-title icon-up" data-i18n="history.upload">آپلود (Mbps)</h3>
+          <label class="chart-series-toggle chart-series-toggle-ping">
+            <input type="checkbox" id="historyChartUpPingToggle" checked />
+            <span data-i18n="history.showPing">پینگ</span>
+          </label>
+        </div>
         <canvas id="historyChartUp" height="160"></canvas>
       </div>
     </section>
