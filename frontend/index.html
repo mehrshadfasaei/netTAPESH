@@ -39,6 +39,18 @@
        the home-screen icon and only looks at this tag. -->
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <!-- The page's only font, used for essentially all visible text —
+       without this the browser doesn't discover it needs Vazirmatn
+       until it parses style.css's @font-face rule, well after the
+       request could have started. Preloading it lets the font and the
+       stylesheet fetch in parallel instead of in sequence, shortening
+       the FOUT/CLS window (a real Core Web Vitals/LCP factor, not just
+       a cosmetic one) on a first, uncached visit. crossorigin is
+       required for font preloads even though this file is same-origin
+       — fonts are always fetched in "anonymous" CORS mode by spec, and
+       a mismatched/missing crossorigin here makes Chrome silently
+       re-fetch the file instead of reusing the preloaded one. -->
+  <link rel="preload" href="/fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/css/style.css" />
   <!-- Structured data (schema.org) — tells Google this is a free web
        app it can potentially show as a rich result (app name, "free",
