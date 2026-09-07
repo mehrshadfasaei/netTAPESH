@@ -1536,3 +1536,19 @@
   // run one themselves.
   applyLanguage(getStoredLang() === "en" ? "en" : "fa");
 })();
+
+// ---- PWA: service worker registration ----
+// Outside the IIFE above — doesn't touch anything in its scope, and a
+// registration failure (unsupported browser, plain-HTTP dev without
+// localhost, etc.) shouldn't be able to affect app startup either way.
+// sw.js itself never intercepts /api/* (see its own comment) — this
+// only ever affects the static shell (HTML/CSS/JS/fonts/icons), never
+// a speed-test measurement.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Best-effort — no install prompt / offline shell if this fails,
+      // but the app itself works exactly the same either way.
+    });
+  });
+}

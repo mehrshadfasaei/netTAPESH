@@ -4,6 +4,13 @@ An internet speed test — ping, download, and upload — built as a plain
 web page. No install, no app, no account: open the page, click the
 button, get real numbers.
 
+It's also installable as a PWA (Progressive Web App) — "Add to Home
+Screen" on mobile or "Install" from a desktop browser's address bar
+gives it its own icon and opens it full-screen, without going through
+an app store. This is purely a shortcut/presentation layer, not an
+offline mode: every measurement still needs a real, live connection to
+the server, same as opening the page in a normal tab.
+
 ## Why self-hosted
 
 Public speed test sites (Speedtest.net, fast.com) measure your
