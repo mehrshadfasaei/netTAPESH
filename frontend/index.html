@@ -475,6 +475,38 @@
         </div>
       </div>
 
+      <!-- Optional comparison against the speed the visitor's ISP plan
+           actually promises. Entirely client-side — the plan number
+           only ever lives in this browser's localStorage (see
+           PLAN_SPEED_STORAGE_KEY in speedtest.js), never sent to the
+           server or stored alongside any test result — so this adds
+           no new privacy/security surface to a database that's
+           otherwise fully anonymous. Two mutually-exclusive states,
+           toggled by JS: the input prompt (first time / not set yet)
+           and the result line (once a plan speed is saved). -->
+      <div class="plan-compare" id="planCompareBlock">
+        <form id="planInputForm" class="plan-input-form">
+          <label for="planSpeedInput" data-i18n="plan.prompt">سرعت پلن اینترنتت رو وارد کن تا مقایسه کنیم</label>
+          <div class="plan-input-row">
+            <input
+              type="number"
+              id="planSpeedInput"
+              min="0.1"
+              step="0.1"
+              inputmode="decimal"
+              data-i18n-placeholder="plan.placeholder"
+              placeholder="مثلاً ۵۰"
+            />
+            <span class="plan-input-unit">Mbps</span>
+            <button type="submit" data-i18n="plan.save">ثبت</button>
+          </div>
+        </form>
+        <div id="planResultRow" class="plan-result-row" hidden>
+          <span id="planResultText" class="plan-result-text"></span>
+          <button type="button" id="planEditBtn" class="plan-edit-btn" data-i18n-aria="plan.edit">✎</button>
+        </div>
+      </div>
+
       <div class="results-quality-row" id="resultsQualityRow">
         <!-- filled by JS: gaming / streaming / video-call / web-browsing, each with a 5-dot rating -->
       </div>

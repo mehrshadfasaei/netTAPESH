@@ -117,6 +117,11 @@
       "share.text": "نتیجه‌ی تست سرعت اینترنتم با netTAPESH: ⬇ {download} {unit} دانلود، ⬆ {upload} {unit} آپلود، پینگ {ping} ms",
       "share.copied": "کپی شد!",
       "share.copyFailed": "کپی نشد",
+      "plan.prompt": "سرعت پلن اینترنتت رو وارد کن تا مقایسه کنیم",
+      "plan.placeholder": "مثلاً ۵۰",
+      "plan.save": "ثبت",
+      "plan.edit": "ویرایش سرعت پلن",
+      "plan.resultText": "٪{percent} از سرعت پلن ({planSpeed} Mbps)",
       "quality.browsing": "وب‌گردی",
       "quality.gaming": "گیم آنلاین",
       "quality.streaming": "استریم ویدیو",
@@ -187,6 +192,11 @@
       "share.text": "My internet speed test result with netTAPESH: ⬇ {download} {unit} down, ⬆ {upload} {unit} up, ping {ping} ms",
       "share.copied": "Copied!",
       "share.copyFailed": "Copy failed",
+      "plan.prompt": "Enter your ISP plan's speed to compare",
+      "plan.placeholder": "e.g. 50",
+      "plan.save": "Save",
+      "plan.edit": "Edit plan speed",
+      "plan.resultText": "{percent}% of plan speed ({planSpeed} Mbps)",
       "quality.browsing": "Web Browsing",
       "quality.gaming": "Online Gaming",
       "quality.streaming": "Video Streaming",
@@ -282,6 +292,9 @@
     document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
       el.setAttribute("aria-label", t(el.dataset.i18nAria));
     });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+      el.setAttribute("placeholder", t(el.dataset.i18nPlaceholder));
+    });
 
     // The continuous-ping start/stop button's label depends on running
     // state too, not just language — re-derive rather than assume.
@@ -374,6 +387,11 @@
   const resultsQualityRow = document.getElementById("resultsQualityRow");
   const resultsTimestampEl = document.getElementById("resultsTimestamp");
   const resultsShareBtn = document.getElementById("resultsShareBtn");
+  const planInputForm = document.getElementById("planInputForm");
+  const planSpeedInput = document.getElementById("planSpeedInput");
+  const planResultRow = document.getElementById("planResultRow");
+  const planResultText = document.getElementById("planResultText");
+  const planEditBtn = document.getElementById("planEditBtn");
 
   // ---- Clock (top-right timestamp, like Ookla's) ----
   function updateNowStamp() {
@@ -455,6 +473,66 @@
     ).join("");
   }
 
+  // ---- ISP-plan comparison (optional, fully client-side) ----
+  // The plan speed a visitor enters is never sent to the server or
+  // attached to any test result — it only ever lives in this
+  // browser's localStorage. See the HTML comment on #planCompareBlock
+  // for why that matters (this app's history table has no auth, so
+  // anything that DID reach the server there becomes effectively
+  // public).
+  const PLAN_SPEED_STORAGE_KEY = "nettapesh_plan_mbps";
+
+  function getPlanSpeed() {
+    const raw = localStorage.getItem(PLAN_SPEED_STORAGE_KEY);
+    const value = raw == null ? null : parseFloat(raw);
+    return value != null && isFinite(value) && value > 0 ? value : null;
+  }
+
+  function setPlanSpeed(value) {
+    try {
+      localStorage.setItem(PLAN_SPEED_STORAGE_KEY, String(value));
+    } catch (e) {
+      // Private-browsing/storage-disabled — the comparison just won't
+      // persist across a reload; not worth surfacing an error for.
+    }
+  }
+
+  // Compares against DOWNLOAD specifically — that's the number ISPs
+  // actually advertise ("50 Mbps internet"), not upload.
+  function renderPlanCompare(downloadMbps) {
+    const planSpeed = getPlanSpeed();
+    if (planSpeed == null) {
+      planInputForm.hidden = false;
+      planResultRow.hidden = true;
+      return;
+    }
+    const percent = Math.round((downloadMbps / planSpeed) * 100);
+    // Thresholds are deliberately generous — real-world Wi-Fi/overhead
+    // losses mean even a healthy connection rarely hits 100% of the
+    // advertised number, so treating anything below it as "bad" would
+    // just be alarming for no reason.
+    const color = percent >= 80 ? "--green" : percent >= 50 ? "--amber" : "--red";
+    planResultText.textContent = t("plan.resultText", { percent, planSpeed });
+    planResultText.style.color = `var(${color})`;
+    planInputForm.hidden = true;
+    planResultRow.hidden = false;
+  }
+
+  planInputForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const value = parseFloat(planSpeedInput.value);
+    if (!isFinite(value) || value <= 0) return;
+    setPlanSpeed(value);
+    if (lastShownResult) renderPlanCompare(lastShownResult.download_mbps);
+  });
+
+  planEditBtn.addEventListener("click", () => {
+    planSpeedInput.value = getPlanSpeed() ?? "";
+    planResultRow.hidden = true;
+    planInputForm.hidden = false;
+    planSpeedInput.focus();
+  });
+
   // Kept in module scope (not just the DOM) so shareResult() below has
   // the raw numbers to build its share text from — the DOM only has the
   // already-formatted (unit-converted, rounded) display strings.
@@ -462,6 +540,7 @@
 
   function showResultsOverlay(result) {
     lastShownResult = result;
+    renderPlanCompare(result.download_mbps);
     resDown.textContent = formatSpeed(result.download_mbps);
     resUp.textContent = formatSpeed(result.upload_mbps);
     resPing.textContent = result.ping_ms.toFixed(0);

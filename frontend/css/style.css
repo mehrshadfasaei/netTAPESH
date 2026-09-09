@@ -763,6 +763,84 @@ body {
 .results-mini-label { font-size: 0.8rem; color: var(--text-dim); }
 .results-mini-value { font-size: 1.1rem; font-weight: 700; }
 
+/* Optional ISP-plan comparison — see the HTML comment above
+   #planCompareBlock for why this stays purely client-side. Styled as
+   a quiet inline strip, not another prominent stat card: the
+   download/upload/ping numbers above are the actual measurement this
+   whole page exists for, this is a secondary, opt-in annotation on
+   top of them. */
+.plan-compare {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+/* [hidden] is toggled via JS (renderPlanCompare()/the edit button) to
+   switch between the input form and the result line — needs the same
+   fix this codebase has needed several times before (.btn-start,
+   .page, .side-info, .topbar): an author-stylesheet class selector and
+   the [hidden] attribute selector have EQUAL specificity, and
+   author-stylesheet rules win over the browser's default UA
+   stylesheet regardless of source order, so "display: flex" below
+   would otherwise silently override [hidden]'s own "display: none". */
+.plan-input-form[hidden],
+.plan-result-row[hidden] {
+  display: none;
+}
+.plan-input-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+.plan-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.plan-input-row input {
+  width: 5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+}
+.plan-input-unit { color: var(--text-dim); }
+.plan-input-row button {
+  padding: 0.3rem 0.9rem;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.plan-result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.plan-result-text { font-weight: 600; }
+/* Colors set inline via JS (renderPlanCompare() picks --green/--amber/
+   --red per how close the result is to the promised plan speed) — see
+   the matching comment there for the exact thresholds. */
+.plan-edit-btn {
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.1rem 0.3rem;
+  line-height: 1;
+}
+.plan-edit-btn:hover { color: var(--text); }
+
 .results-quality-row {
   display: flex;
   gap: 1.5rem;
