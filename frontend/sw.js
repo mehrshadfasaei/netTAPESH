@@ -58,8 +58,19 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        // Only cache an actually-successful response — caching a
+        // transient 404/502 (a flaky deploy, a CDN hiccup) would make
+        // THAT the offline fallback later, instead of the last good
+        // asset, defeating the whole point of the cache.
+        if (response.ok) {
+          const copy = response.clone();
+          // event.waitUntil, not a bare .then() — without it, the
+          // browser is free to kill this worker as soon as the
+          // response above is handed back (respondWith's promise
+          // settles then), which can abort the cache write mid-flight
+          // and silently leave the shell cache stale.
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
+        }
         return response;
       })
       .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))

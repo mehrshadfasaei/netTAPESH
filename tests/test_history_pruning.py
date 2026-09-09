@@ -12,12 +12,17 @@ from backend.db.database import SessionLocal
 from backend.db.models import SpeedtestLog
 
 
-def _insert_row(session, *, days_old: float = 0):
+def _insert_row(session, *, days_old: float = 0, marker: float = 1.0):
+    # `marker` (stashed in download_mbps, otherwise unused by these
+    # tests) exists so a test can identify *which* rows survived
+    # pruning by value, not just count them — timestamps alone are
+    # awkward to assert on directly since they're each computed
+    # relative to datetime.now() at insert time.
     row = SpeedtestLog(
         timestamp=datetime.now(UTC) - timedelta(days=days_old),
         ping_ms=1.0,
         jitter_ms=1.0,
-        download_mbps=1.0,
+        download_mbps=marker,
         upload_mbps=1.0,
     )
     session.add(row)
@@ -48,10 +53,16 @@ def test_prune_enforces_max_row_cap(client, monkeypatch):
     with SessionLocal() as session:
         # Insert 5 rows, oldest first, none of them old enough to be
         # pruned by retention alone — only the row-count cap should act.
+        # marker=i doubles as "how old" (5 = oldest .. 1 = newest), so
+        # the surviving rows can be identified by value below, not just
+        # counted.
         for i in range(5, 0, -1):
-            _insert_row(session, days_old=i * 0.01)
+            _insert_row(session, days_old=i * 0.01, marker=float(i))
         _prune_history(session)
         remaining = session.query(SpeedtestLog).order_by(SpeedtestLog.timestamp.asc()).all()
-        assert len(remaining) == 3
-        # The rows kept should be the 3 most recent (smallest days_old).
-        assert remaining[0].timestamp > remaining[-1].timestamp - timedelta(days=100)
+        # Must be exactly the 3 newest rows (marker 3, 2, 1) — asserting
+        # only len()==3 (as an earlier version of this test did) would
+        # still pass if _prune_history's row-cap branch regressed to
+        # keeping the oldest rows instead (e.g. an .asc()/.desc() flip
+        # on the ordering it deletes by).
+        assert [r.download_mbps for r in remaining] == [3.0, 2.0, 1.0]

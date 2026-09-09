@@ -578,12 +578,19 @@
   let shareFlashTimer = null;
   function flashShareButton(messageKey) {
     const labelEl = resultsShareBtn.querySelector("span");
-    const original = labelEl.textContent;
     clearTimeout(shareFlashTimer);
     labelEl.textContent = t(messageKey);
     resultsShareBtn.classList.add("copied");
     shareFlashTimer = setTimeout(() => {
-      labelEl.textContent = original;
+      // Re-read "results.share" rather than restoring a captured
+      // string. Currently the language switcher lives in the header,
+      // which openResultsOverlay() hides for as long as this button is
+      // even visible, so a language switch mid-flash isn't reachable
+      // through today's UI — but re-deriving from the same source of
+      // truth applyLanguage() uses costs nothing and stops this from
+      // becoming a real bug the moment that constraint changes,
+      // instead of silently reverting to a stale-language string.
+      labelEl.textContent = t("results.share");
       resultsShareBtn.classList.remove("copied");
     }, 2000);
   }
