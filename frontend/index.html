@@ -327,6 +327,38 @@
       </section>
     </section>
 
+    <!-- ---- Glossary: short, genuinely informative definitions of the
+         4 numbers this app measures. Same placement logic as the FAQ
+         right below it (outside both .page-tab sections, so it shows
+         on either tab) and the same dual purpose: real content a
+         visitor searching "پینگ چیست"/"jitter چیست" etc. might
+         actually land on, and substance for search engines to index
+         beyond the app UI itself. Always-visible <dl>, not a
+         <details> accordion like the FAQ — each entry is short enough
+         that collapsing it would cost more (an extra click) than it
+         saves. ---- -->
+    <section class="glossary-section" id="glossarySection">
+      <h2 class="glossary-title" data-i18n="glossary.title">اصطلاحات تست سرعت</h2>
+      <dl class="glossary-list">
+        <div class="glossary-item">
+          <dt data-i18n="glossary.pingTerm">پینگ (Ping)</dt>
+          <dd data-i18n="glossary.pingDesc">مدت‌زمانی که طول می‌کشه یه بسته‌ی داده از دستگاهت به سرور برسه و جوابش برگرده، بر حسب میلی‌ثانیه (ms). عدد کمتر یعنی واکنش سریع‌تر — برای بازی آنلاین و تماس تصویری اهمیت زیادی داره.</dd>
+        </div>
+        <div class="glossary-item">
+          <dt data-i18n="glossary.jitterTerm">جیتر (Jitter)</dt>
+          <dd data-i18n="glossary.jitterDesc">میزان نوسان پینگ بین درخواست‌های پشت‌سرهم. جیتر بالا یعنی اتصال ناپایداره حتی اگه میانگین پینگ خوب باشه — معمولاً همون چیزیه که باعث قطع‌وصل شدن صدا یا تصویر توی یه تماس زنده می‌شه.</dd>
+        </div>
+        <div class="glossary-item">
+          <dt data-i18n="glossary.downloadTerm">دانلود (Download)</dt>
+          <dd data-i18n="glossary.downloadDesc">سرعت دریافت داده از اینترنت به دستگاهت، بر حسب مگابیت بر ثانیه (Mbps). این عددیه که روی باز شدن سایت‌ها، پخش ویدیو، و دانلود فایل بیشترین تأثیر رو داره.</dd>
+        </div>
+        <div class="glossary-item">
+          <dt data-i18n="glossary.uploadTerm">آپلود (Upload)</dt>
+          <dd data-i18n="glossary.uploadDesc">سرعت ارسال داده از دستگاهت به اینترنت. برای آپلود فایل، استریم زنده، و کیفیت تصویر توی تماس ویدیویی مهمه — روی اکثر اتصال‌های خانگی معمولاً به‌مراتب کمتر از سرعت دانلوده.</dd>
+        </div>
+      </dl>
+    </section>
+
     <!-- ---- FAQ: outside both .page-tab sections above (so it's the
          same on either tab), genuine Persian content answering real
          questions about how this actually works — not filler. Doubles
