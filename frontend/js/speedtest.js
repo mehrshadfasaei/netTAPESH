@@ -87,6 +87,7 @@
       "history.showPing": "پینگ",
       "pingtab.start": "شروع",
       "pingtab.stop": "توقف",
+      "pingtab.blockedByMainTest": "یه تست سرعت در حال اجراست — صبر کن تموم بشه تا بتونی تست پیوسته رو شروع کنی.",
       "ping.rounds": "دورها",
       "ping.avgPing": "میانگین پینگ",
       "ping.avgDown": "میانگین دانلود",
@@ -171,6 +172,7 @@
       "history.showPing": "Ping",
       "pingtab.start": "Start",
       "pingtab.stop": "Stop",
+      "pingtab.blockedByMainTest": "A speed test is already running — wait for it to finish before starting the continuous test.",
       "ping.rounds": "Rounds",
       "ping.avgPing": "Avg Ping",
       "ping.avgDown": "Avg Download",
@@ -1170,8 +1172,12 @@
     // left running during the main test, both would compete for the
     // same bandwidth/connections and silently corrupt each other's
     // numbers instead of erroring, which is worse. stopPingLoop() is a
-    // no-op if it isn't running.
+    // no-op if it isn't running (covers the loop already being active
+    // when this starts); setMainTestRunning(true) below covers the
+    // other direction — the visitor switching to the continuous-ping
+    // tab and trying to start a NEW loop while this is still running.
     stopPingLoop();
+    setMainTestRunning(true);
     speedoWrapEl.hidden = false; // reveal the dial now that a test is actually running
     ispInfoEl.hidden = false; // same — ISP/location join the button once a test starts, not before
     locationInfoEl.hidden = false;
@@ -1228,6 +1234,7 @@
       runBtn.hidden = false;
     } finally {
       runBtn.disabled = false;
+      setMainTestRunning(false);
     }
   }
 
@@ -1536,6 +1543,7 @@
   const pingLoopUploadBuffer = new Uint8Array(PING_LOOP_UPLOAD_BYTES);
 
   const pingLoopToggleBtn = document.getElementById("pingLoopToggleBtn");
+  const pingLoopBlockedHintEl = document.getElementById("pingLoopBlockedHint");
   const pingLoopBtnLabelEl = document.getElementById("pingLoopBtnLabel");
   const pingLoopChartBlockEl = document.getElementById("pingLoopChartBlock");
   const pingLogEl = document.getElementById("pingLog");
@@ -1687,11 +1695,26 @@
     renderPingLoopChart();
   }
 
+  // Called from runTest() (see its own comment on why) to keep the
+  // continuous-ping tab from starting a loop that would compete with
+  // the main test for the same /download and /upload endpoints and
+  // silently corrupt both sets of numbers. Disabling the button is
+  // the actual guard (a disabled button doesn't fire click at all);
+  // the hint just explains why, instead of it looking broken.
+  function setMainTestRunning(running) {
+    pingLoopToggleBtn.disabled = running;
+    pingLoopBlockedHintEl.hidden = !running;
+  }
+
   pingLoopToggleBtn.addEventListener("click", () => {
     if (pingLoopRunning) {
       stopPingLoop();
       return;
     }
+    // Belt-and-suspenders alongside the `disabled` attribute above —
+    // costs nothing and covers any path that could still dispatch a
+    // click on a disabled button (e.g. a synthetic/programmatic one).
+    if (pingLoopToggleBtn.disabled) return;
     pingLoopRunning = true;
     pingLoopPingSamples = [];
     pingLoopDownSamples = [];
