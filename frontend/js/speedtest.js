@@ -93,6 +93,7 @@
       "ping.avgDown": "میانگین دانلود",
       "ping.avgUp": "میانگین آپلود",
       "ping.empty": "دکمه‌ی شروع رو بزنید تا دورهای پشت‌سرهم پینگ/دانلود/آپلود شروع بشه.",
+      "ping.loading": "در حال دریافت اولین نتیجه…",
       "ping.pingLabel": "پینگ",
       "ping.error": "خطا در اتصال",
       "ping.chartTitle": "روند سرعت در طول تست",
@@ -178,6 +179,7 @@
       "ping.avgDown": "Avg Download",
       "ping.avgUp": "Avg Upload",
       "ping.empty": "Click Start to begin continuous ping/download/upload rounds.",
+      "ping.loading": "Fetching the first result…",
       "ping.pingLabel": "Ping",
       "ping.error": "Connection error",
       "ping.chartTitle": "Speed trend over the test",
@@ -1683,6 +1685,23 @@
     }
   }
 
+  // #pingLogEmpty doubles as two different messages depending on
+  // state — the idle "click start" prompt before anything's happened,
+  // and a "loading" message for the gap between clicking start and
+  // the first round actually completing (a real round takes a second
+  // or so — ping + download probe + upload probe — so without this
+  // the empty-state text just sat there unchanged, looking like the
+  // click hadn't registered at all). Updates the element's own
+  // data-i18n attribute, not just its text, so a language switch
+  // mid-loading still re-translates correctly via the normal
+  // applyLanguage() sweep.
+  function setPingLogEmptyState(state) {
+    const key = state === "loading" ? "ping.loading" : "ping.empty";
+    pingLogEmptyEl.dataset.i18n = key;
+    pingLogEmptyEl.textContent = t(key);
+    pingLogEmptyEl.classList.toggle("ping-log-loading", state === "loading");
+  }
+
   // Shared by the toggle button's click handler and runTest() (see
   // above) — stopping the loop mid-round just lets its current
   // pingLoopStep() finish and the while-loop in runPingLoop() exit
@@ -1692,6 +1711,10 @@
     pingLoopRunning = false;
     pingLoopBtnLabelEl.textContent = t("pingtab.start");
     pingLoopToggleBtn.classList.remove("running");
+    // Stopped before the first round ever completed (pingLogEmptyEl
+    // is still what's showing, not the log) — put its text back to
+    // the idle prompt instead of leaving "loading" frozen on screen.
+    if (pingLoopPingSamples.length === 0) setPingLogEmptyState("idle");
     renderPingLoopChart();
   }
 
@@ -1722,6 +1745,7 @@
     pingLoopSeq = 0;
     pingLogEl.textContent = "";
     pingLogEl.hidden = true;
+    setPingLogEmptyState("loading");
     pingLogEmptyEl.hidden = false;
     pingSummaryRowEl.hidden = true;
     pingLoopChartBlockEl.hidden = true;
